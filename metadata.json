@@ -1,0 +1,6 @@
+{
+  "name": "Opal Tech",
+  "description": "Daily tech tips, app recommendations, digital guides, and technology insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

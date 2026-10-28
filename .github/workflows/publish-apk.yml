@@ -1,0 +1,40 @@
+name: Publish Pre-Compiled APK Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'apk-distribution/**'
+      - '.github/workflows/publish-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate APK and Checksum
+        run: |
+          test -f apk-distribution/app-debug.apk || { echo "APK file not found!"; exit 1; }
+          test -f apk-distribution/app-debug.apk.sha256 || { echo "Checksum file not found!"; exit 1; }
+          cd apk-distribution
+          sha256sum -c app-debug.apk.sha256
+          unzip -tq app-debug.apk
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="v1.0.${{ github.run_number }}"
+          RELEASE_TITLE="Release ${TAG_NAME}"
+          gh release create "${TAG_NAME}" apk-distribution/app-debug.apk \
+            --title "${RELEASE_TITLE}" \
+            --notes "Direct installable Debug APK for Opal Tech. Built and verified in AI Studio environment." \
+            --latest || gh release upload "${TAG_NAME}" apk-distribution/app-debug.apk --clobber
