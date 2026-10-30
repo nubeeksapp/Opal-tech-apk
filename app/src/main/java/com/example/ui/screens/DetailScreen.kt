@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.R
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,10 +27,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -284,20 +292,22 @@ fun DetailScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Rich-Text Body Content (renders headings, bold, nested lists, code blocks, tables, blockquotes, and plain text)
+                // 2. Complete Main Article Content (HTML formatted body text)
                 com.example.ui.components.RichArticleContent(
                     article = article,
                     baseFontSize = baseFontSize,
                     lineSpacing = lineSpacing
                 )
 
-                // Optional Generate Prompt Section (placed at the end of the normal body content)
-                val effectivePrompt = article.generatePrompt.ifBlank { article.prompt }.trim()
-                if (effectivePrompt.isNotBlank() && (article.generatePromptEnabled || article.generatePrompt.isNotBlank())) {
+                // 3. Optional Generate Prompt Section (placed at the end of the normal body content immediately above "Who It's For")
+                val hasPromptContent = article.generatePrompt.isNotBlank() || article.prompt.isNotBlank() ||
+                    article.scenes.isNotEmpty() || article.sceneItems.isNotEmpty()
+                if (article.generatePromptEnabled && hasPromptContent) {
+                    val effectivePrompt = article.generatePrompt.ifBlank { article.prompt }.trim()
                     val promptArticle = if (article.generatePrompt.isBlank()) {
-                        article.copy(generatePrompt = effectivePrompt, generatePromptEnabled = true)
+                        article.copy(generatePrompt = effectivePrompt)
                     } else {
                         article
                     }
@@ -308,91 +318,56 @@ fun DetailScreen(
                     )
                 }
 
-                // Breakdown Section: "🏆 Who It's For" (as requested in prompt & Screenshot 1)
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "🏆 Who It's For",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = (baseFontSize.value + 2).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                article.whoItsFor.forEach { point ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text(
-                            text = "✔",
+                // 4. "Who It's For" Section (ONLY if genuine audience bullet items exist)
+                if (article.whoItsFor.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "🏆 Who It's For",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = baseFontSize,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = point,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = baseFontSize,
-                                lineHeight = lineSpacing
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
+                            fontSize = (baseFontSize.value + 2).sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-                // Key Features Section
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(
-                    text = "⭐ Key Features",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = (baseFontSize.value + 2).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                article.keyFeatures.forEach { feature ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Box(
+                    article.whoItsFor.forEach { point ->
+                        Row(
                             modifier = Modifier
-                                .padding(top = 4.dp, end = 10.dp)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(12.dp)
+                            Text(
+                                text = "✔",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = baseFontSize,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                text = point,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = baseFontSize,
+                                    lineHeight = lineSpacing
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        Text(
-                            text = feature,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = baseFontSize,
-                                lineHeight = lineSpacing
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                     }
                 }
 
-                // Sleek Native Ad placed naturally at the end of the article immediately above "Suggested"
+                // 5. Single "Open" or "Get it now" Action Button at the very end of the article (if playStoreUrl is present)
+                if (article.playStoreUrl.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(18.dp))
+                    ArticleActionButton(
+                        article = article,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // 6. Sleek Native Ad placed naturally at the end of the article immediately above "Suggested"
                 Spacer(modifier = Modifier.height(20.dp))
                 NativeAdCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -439,6 +414,93 @@ fun DetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+/**
+ * Single Action Button at the very end of the article ("Open" vs "Get it now").
+ *
+ * Rules:
+ * - If Google Play URL (contains "play.google.com" or "market.android.com" or "market://"):
+ *   Button text: "Open", solid Google Play Green (#01875F), white text, 12dp rounded corners, Play Store icon.
+ * - If other external link:
+ *   Button text: "Get it now", solid Accent Blue (#0066FF), white text, 12dp rounded corners, external link arrow icon.
+ * - Opens URL via Intent(Intent.ACTION_VIEW, Uri.parse(url)).
+ * - If playStoreUrl is null or blank, completely hidden.
+ */
+@Composable
+private fun ArticleActionButton(
+    article: TechArticle,
+    modifier: Modifier = Modifier
+) {
+    val link = article.playStoreUrl.trim()
+    if (link.isBlank()) return
+
+    val context = LocalContext.current
+    val isPlayStore = remember(link) {
+        link.contains("play.google.com", ignoreCase = true) ||
+            link.contains("market.android.com", ignoreCase = true) ||
+            link.startsWith("market://", ignoreCase = true)
+    }
+
+    val buttonText = if (isPlayStore) "Open" else "Get it now"
+    val containerBg = if (isPlayStore) Color(0xFF01875F) else Color(0xFF0066FF)
+
+    Button(
+        onClick = {
+            try {
+                val targetUrl = if (link.startsWith("http://") || link.startsWith("https://") || link.startsWith("market://")) {
+                    link
+                } else {
+                    "https://$link"
+                }
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                IntentUtils.openAdaptiveLink(context, link, article.appPackageName)
+            }
+        },
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerBg,
+            contentColor = Color.White
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .testTag("article_action_button")
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (isPlayStore) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Open in Google Play Store",
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.White
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                    contentDescription = "Get it now",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color.White
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = buttonText,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+            )
         }
     }
 }

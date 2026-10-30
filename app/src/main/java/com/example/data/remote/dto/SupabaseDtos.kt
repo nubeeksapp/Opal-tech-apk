@@ -89,6 +89,7 @@ data class SupabasePostDto(
     @param:Json(name = "app_url") val appUrl: String? = null,
     @param:Json(name = "link") val link: String? = null,
     @param:Json(name = "url") val url: String? = null,
+    @param:Json(name = "link_info") val linkInfo: Any? = null,
     @param:Json(name = "target_audience") val targetAudience: Any? = null,
     @param:Json(name = "who_its_for") val whoItsFor: Any? = null,
     @param:Json(name = "key_features") val keyFeatures: Any? = null,
@@ -168,14 +169,20 @@ data class SupabasePostDto(
 
         val resolvedThumbnail = resolveStorageUrl(rawThumbnail)
 
-        val effectivePlayStoreUrl = playStoreUrl?.trim()
-            ?: storeUrl?.trim()
-            ?: appUrl?.trim()
-            ?: link?.trim()
-            ?: url?.trim()
+        val promptResult = parsePromptAndAudience(
+            targetAudienceRaw = targetAudience,
+            whoItsForRaw = whoItsFor,
+            post = this
+        )
+
+        val effectivePlayStoreUrl = playStoreUrl?.trim()?.ifBlank { null }
+            ?: storeUrl?.trim()?.ifBlank { null }
+            ?: appUrl?.trim()?.ifBlank { null }
+            ?: link?.trim()?.ifBlank { null }
+            ?: url?.trim()?.ifBlank { null }
+            ?: promptResult.extractedLink?.trim()?.ifBlank { null }
             ?: ""
 
-        val parsedAudience = parseTargetAudience(targetAudience ?: whoItsFor)
         val parsedFeatures = parseStringList(keyFeatures ?: features)
         val parsedFullDesc = parseStringList(fullDescription).takeIf { it.isNotEmpty() }
             ?: parseContentParagraphs(effectiveContent)
@@ -204,22 +211,11 @@ data class SupabasePostDto(
         val resolvedFeatures = if (parsedFeatures.isNotEmpty()) {
             parsedFeatures
         } else {
-            listOf(
-                "Direct verified link to official source & tools.",
-                "Streamlined overview with zero intrusive clutter.",
-                "Real-time dynamic updates via Supabase cloud backend."
-            )
+            emptyList()
         }
 
-        val resolvedAudience = if (parsedAudience.isNotEmpty()) {
-            parsedAudience
-        } else {
-            listOf(
-                "Mobile power users seeking daily tech efficiency.",
-                "Smart device users wanting verified digital recommendations.",
-                "Tech enthusiasts and digital innovators."
-            )
-        }
+        // Clean audience list: strictly genuine audience bullet items or emptyList()
+        val resolvedAudience = promptResult.audience
 
         val resolvedAppName = appName?.trim()?.ifBlank { null }
             ?: cleanedTitle.substringBefore("—").substringBefore(":").trim().ifBlank { "Opal Tech Recommendation" }
@@ -244,75 +240,12 @@ data class SupabasePostDto(
             views = resolvedViews,
             content = effectiveContent,
             contentFormat = contentFormat?.trim() ?: format?.trim() ?: "",
-            prompt = prompt?.trim()
-                ?: aiPrompt?.trim()
-                ?: promptText?.trim()
-                ?: systemPrompt?.trim()
-                ?: prompts?.trim()
-                ?: codeBlock?.trim()
-                ?: code?.trim()
-                ?: "",
-            generatePromptEnabled = run {
-                val candidatePrompt = generatePrompt?.trim()?.ifBlank { null }
-                    ?: prompt?.trim()?.ifBlank { null }
-                    ?: aiPrompt?.trim()?.ifBlank { null }
-                    ?: promptText?.trim()?.ifBlank { null }
-                    ?: generatedPrompt?.trim()?.ifBlank { null }
-                    ?: systemPrompt?.trim()?.ifBlank { null }
-                    ?: prompts?.trim()?.ifBlank { null }
-                    ?: codeBlock?.trim()?.ifBlank { null }
-                    ?: code?.trim()?.ifBlank { null }
-                    ?: ""
-
-                val explicitlyDisabled = generatePromptEnabled == false ||
-                    enableGeneratePrompt == false ||
-                    isGeneratePrompt == false ||
-                    promptEnabled == false ||
-                    showPrompt == false
-
-                val explicitlyEnabled = generatePromptEnabled == true ||
-                    enableGeneratePrompt == true ||
-                    isGeneratePrompt == true ||
-                    promptEnabled == true ||
-                    showPrompt == true ||
-                    hasPrompt == true
-
-                when {
-                    explicitlyDisabled -> false
-                    explicitlyEnabled -> candidatePrompt.isNotBlank()
-                    candidatePrompt.isNotBlank() -> true
-                    else -> false
-                }
-            },
-            generatePrompt = run {
-                val candidatePrompt = generatePrompt?.trim()?.ifBlank { null }
-                    ?: prompt?.trim()?.ifBlank { null }
-                    ?: aiPrompt?.trim()?.ifBlank { null }
-                    ?: promptText?.trim()?.ifBlank { null }
-                    ?: generatedPrompt?.trim()?.ifBlank { null }
-                    ?: systemPrompt?.trim()?.ifBlank { null }
-                    ?: prompts?.trim()?.ifBlank { null }
-                    ?: codeBlock?.trim()?.ifBlank { null }
-                    ?: code?.trim()?.ifBlank { null }
-                    ?: ""
-
-                val explicitlyDisabled = generatePromptEnabled == false ||
-                    enableGeneratePrompt == false ||
-                    isGeneratePrompt == false ||
-                    promptEnabled == false ||
-                    showPrompt == false
-
-                if (!explicitlyDisabled) candidatePrompt else ""
-            },
-            sceneCount = when (val sc = sceneCount ?: scenesCount ?: partsCount) {
-                is Number -> sc.toInt()
-                is String -> sc.trim().toIntOrNull() ?: 0
-                else -> 0
-            }.let { count ->
-                val parsed = parseAdminScenes(scenes ?: sceneParts ?: parts ?: sceneList)
-                if (count > 0) count else if (parsed.isNotEmpty()) parsed.size else 0
-            },
-            scenes = parseAdminScenes(scenes ?: sceneParts ?: parts ?: sceneList)
+            prompt = promptResult.generatePrompt,
+            generatePromptEnabled = promptResult.generatePromptEnabled,
+            generatePrompt = promptResult.generatePrompt,
+            sceneCount = promptResult.sceneCount,
+            scenes = promptResult.scenes,
+            sceneItems = promptResult.sceneItems
         )
     }
 
@@ -343,7 +276,448 @@ data class SupabasePostDto(
             com.squareup.moshi.Moshi.Builder().build().adapter(Any::class.java)
         }
 
-        fun parseTargetAudience(raw: Any?): List<String> = parseStringList(raw)
+        data class PromptAndAudienceResult(
+            val generatePromptEnabled: Boolean,
+            val generatePrompt: String,
+            val sceneCount: Int,
+            val scenes: List<String>,
+            val sceneItems: List<com.example.data.model.SceneItem>,
+            val audience: List<String>,
+            val extractedLink: String? = null
+        )
+
+        fun parsePromptAndAudience(
+            targetAudienceRaw: Any?,
+            whoItsForRaw: Any?,
+            post: SupabasePostDto
+        ): PromptAndAudienceResult {
+            var targetMap: Map<*, *>? = null
+            var directAudienceList: List<String>? = null
+
+            when (targetAudienceRaw) {
+                is Map<*, *> -> {
+                    targetMap = targetAudienceRaw
+                }
+                is String -> {
+                    val trimmed = targetAudienceRaw.trim()
+                    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+                        trimmed.contains("\"link_info\"") || trimmed.contains("\"code_blocks\"")) {
+                        try {
+                            val parsed = jsonAdapter.fromJson(trimmed)
+                            if (parsed is Map<*, *>) targetMap = parsed
+                        } catch (_: Exception) {}
+                    } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                        directAudienceList = parseCleanAudienceList(trimmed)
+                    } else if (trimmed.isNotEmpty() && !trimmed.contains("\"code_blocks\"") && !trimmed.contains("\"link_info\"")) {
+                        directAudienceList = parseCleanAudienceList(trimmed)
+                    }
+                }
+                is List<*> -> {
+                    directAudienceList = parseCleanAudienceList(targetAudienceRaw)
+                }
+            }
+
+            var enabledVal: Any? = null
+            var promptVal: Any? = null
+            var numScenesVal: Any? = null
+            var scenesVal: Any? = null
+            var extractedAudience: List<String>? = directAudienceList
+
+            // 1. Extract link_info or direct URL from targetMap / post
+            var extractedLink: String? = null
+            if (targetMap != null) {
+                val linkObj = targetMap["link_info"] ?: targetMap["linkInfo"] ?: targetMap["link"]
+                extractedLink = extractLinkUrl(linkObj)
+                    ?: extractLinkUrl(targetMap["play_store_url"])
+                    ?: extractLinkUrl(targetMap["playStoreUrl"])
+                    ?: extractLinkUrl(targetMap["url"])
+            }
+            if (extractedLink.isNullOrBlank()) {
+                extractedLink = extractLinkUrl(post.linkInfo)
+                    ?: extractLinkUrl(post.link)
+                    ?: extractLinkUrl(post.playStoreUrl)
+                    ?: extractLinkUrl(post.storeUrl)
+                    ?: extractLinkUrl(post.appUrl)
+                    ?: extractLinkUrl(post.url)
+            }
+            if (extractedLink.isNullOrBlank() && targetAudienceRaw is String) {
+                extractedLink = extractUrlByRegex(targetAudienceRaw)
+            }
+
+            if (targetMap != null) {
+                val gpObj = targetMap["generate_prompt"] ?: targetMap["generatePrompt"]
+                val gpMap: Map<*, *>? = when (gpObj) {
+                    is Map<*, *> -> gpObj
+                    is String -> {
+                        val t = gpObj.trim()
+                        if (t.startsWith("{") && t.endsWith("}")) {
+                            try {
+                                val p = jsonAdapter.fromJson(t)
+                                if (p is Map<*, *>) p else null
+                            } catch (_: Exception) { null }
+                        } else null
+                    }
+                    else -> null
+                }
+
+                if (gpMap != null) {
+                    enabledVal = gpMap["enabled"] ?: gpMap["prompt_enabled"] ?: gpMap["generate_prompt_enabled"]
+                    promptVal = gpMap["prompt"] ?: gpMap["content"] ?: gpMap["text"]
+                    numScenesVal = gpMap["num_scenes"] ?: gpMap["numScenes"] ?: gpMap["scene_count"] ?: gpMap["scenes_count"]
+                    scenesVal = gpMap["scenes"] ?: gpMap["scene_parts"] ?: gpMap["parts"]
+                } else {
+                    enabledVal = targetMap["enabled"] ?: targetMap["prompt_enabled"] ?: targetMap["generate_prompt_enabled"]
+                    promptVal = targetMap["prompt"] ?: targetMap["generate_prompt"] ?: targetMap["prompt_text"]
+                    numScenesVal = targetMap["num_scenes"] ?: targetMap["numScenes"] ?: targetMap["scene_count"]
+                    scenesVal = targetMap["scenes"] ?: targetMap["scene_parts"] ?: targetMap["parts"]
+                }
+
+                if (extractedAudience.isNullOrEmpty()) {
+                    val audCandidate = targetMap["items"]
+                        ?: targetMap["who_its_for"]
+                        ?: targetMap["whoItsFor"]
+                        ?: targetMap["audience"]
+                        ?: targetMap["points"]
+                    if (audCandidate != null && audCandidate != gpObj && audCandidate != targetMap["code_blocks"]) {
+                        extractedAudience = parseCleanAudienceList(audCandidate)
+                    }
+                }
+            }
+
+            if (enabledVal == null) {
+                enabledVal = post.generatePromptEnabled
+                    ?: post.enableGeneratePrompt
+                    ?: post.isGeneratePrompt
+                    ?: post.promptEnabled
+                    ?: post.showPrompt
+                    ?: post.hasPrompt
+            }
+
+            if (promptVal == null || promptVal.toString().isBlank()) {
+                promptVal = post.generatePrompt
+                    ?: post.prompt
+                    ?: post.aiPrompt
+                    ?: post.promptText
+                    ?: post.generatedPrompt
+                    ?: post.systemPrompt
+                    ?: post.prompts
+                    ?: post.codeBlock
+                    ?: post.code
+            }
+
+            if (numScenesVal == null) {
+                numScenesVal = post.sceneCount ?: post.scenesCount ?: post.partsCount
+            }
+
+            if (scenesVal == null) {
+                scenesVal = post.scenes ?: post.sceneParts ?: post.parts ?: post.sceneList
+            }
+
+            val explicitDisabled = when (enabledVal) {
+                is Boolean -> !enabledVal
+                is String -> enabledVal.equals("false", ignoreCase = true) || enabledVal.equals("0")
+                is Number -> enabledVal.toInt() == 0
+                else -> false
+            }
+
+            val explicitEnabled = when (enabledVal) {
+                is Boolean -> enabledVal
+                is String -> enabledVal.equals("true", ignoreCase = true) || enabledVal.equals("1")
+                is Number -> enabledVal.toInt() == 1
+                else -> false
+            }
+
+            val parsedSceneItems = mutableListOf<com.example.data.model.SceneItem>()
+            val rawScenesList = when (scenesVal) {
+                is List<*> -> scenesVal
+                is String -> {
+                    val t = scenesVal.trim()
+                    if (t.startsWith("[") && t.endsWith("]")) {
+                        try {
+                            val p = jsonAdapter.fromJson(t)
+                            if (p is List<*>) p else null
+                        } catch (_: Exception) { null }
+                    } else null
+                }
+                else -> null
+            }
+
+            if (rawScenesList != null) {
+                rawScenesList.forEachIndexed { index, item ->
+                    when (item) {
+                        is Map<*, *> -> {
+                            val partNum = when (val p = item["part"] ?: item["part_number"] ?: item["number"] ?: item["scene"]) {
+                                is Number -> p.toInt()
+                                is String -> p.trim().toIntOrNull() ?: (index + 1)
+                                else -> index + 1
+                            }
+                            val labelStr = (item["label"] ?: item["title"] ?: item["name"])?.toString()?.trim()
+                                ?: "Part $partNum"
+                            val contentStr = (item["content"] ?: item["prompt"] ?: item["text"] ?: item["body"] ?: extractTextFromMap(item))?.toString()?.trim() ?: ""
+                            if (contentStr.isNotEmpty()) {
+                                parsedSceneItems.add(
+                                    com.example.data.model.SceneItem(
+                                        part = partNum,
+                                        label = labelStr,
+                                        content = com.example.utils.SceneSplitter.cleanPartContent(contentStr)
+                                    )
+                                )
+                            }
+                        }
+                        is String -> {
+                            val t = item.trim()
+                            if (t.startsWith("{") && t.endsWith("}")) {
+                                try {
+                                    val m = jsonAdapter.fromJson(t)
+                                    if (m is Map<*, *>) {
+                                        val partNum = (m["part"] as? Number)?.toInt() ?: (index + 1)
+                                        val labelStr = m["label"]?.toString()?.trim() ?: "Part $partNum"
+                                        val contentStr = (m["content"] ?: m["prompt"] ?: m["text"] ?: extractTextFromMap(m))?.toString()?.trim() ?: ""
+                                        if (contentStr.isNotEmpty()) {
+                                            parsedSceneItems.add(
+                                                com.example.data.model.SceneItem(
+                                                    part = partNum,
+                                                    label = labelStr,
+                                                    content = com.example.utils.SceneSplitter.cleanPartContent(contentStr)
+                                                )
+                                            )
+                                        }
+                                    } else {
+                                        parsedSceneItems.add(
+                                            com.example.data.model.SceneItem(
+                                                part = index + 1,
+                                                label = "Part ${index + 1}",
+                                                content = com.example.utils.SceneSplitter.cleanPartContent(t)
+                                            )
+                                        )
+                                    }
+                                } catch (_: Exception) {
+                                    parsedSceneItems.add(
+                                        com.example.data.model.SceneItem(
+                                            part = index + 1,
+                                            label = "Part ${index + 1}",
+                                            content = com.example.utils.SceneSplitter.cleanPartContent(t)
+                                        )
+                                    )
+                                }
+                            } else if (t.isNotEmpty()) {
+                                parsedSceneItems.add(
+                                    com.example.data.model.SceneItem(
+                                        part = index + 1,
+                                        label = "Part ${index + 1}",
+                                        content = com.example.utils.SceneSplitter.cleanPartContent(t)
+                                    )
+                                )
+                            }
+                        }
+                        else -> {
+                            val s = item?.toString()?.trim() ?: ""
+                            if (s.isNotEmpty()) {
+                                parsedSceneItems.add(
+                                    com.example.data.model.SceneItem(
+                                        part = index + 1,
+                                        label = "Part ${index + 1}",
+                                        content = com.example.utils.SceneSplitter.cleanPartContent(s)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            var promptString = promptVal?.toString()?.trim() ?: ""
+
+            if (promptString.isEmpty() && parsedSceneItems.isNotEmpty()) {
+                promptString = parsedSceneItems.joinToString("\n\n") { "${it.label}:\n${it.content}" }
+            }
+
+            val targetSceneCount = when (numScenesVal) {
+                is Number -> numScenesVal.toInt()
+                is String -> numScenesVal.trim().toIntOrNull() ?: 0
+                else -> 0
+            }
+
+            if (parsedSceneItems.isEmpty() && promptString.isNotEmpty()) {
+                val derived = com.example.utils.SceneSplitter.splitIntoScenes(
+                    prompt = promptString,
+                    targetCount = targetSceneCount,
+                    explicitScenes = emptyList()
+                )
+                derived.forEachIndexed { idx, s ->
+                    val clean = com.example.utils.SceneSplitter.cleanPartContent(s)
+                    if (clean.isNotEmpty()) {
+                        parsedSceneItems.add(
+                            com.example.data.model.SceneItem(
+                                part = idx + 1,
+                                label = "Part ${idx + 1}",
+                                content = clean
+                            )
+                        )
+                    }
+                }
+            }
+
+            val sceneContents = parsedSceneItems.map { it.content }
+
+            val isPromptValid = !explicitDisabled && (promptString.isNotBlank() || sceneContents.isNotEmpty())
+            val effectiveEnabled = if (explicitDisabled) {
+                false
+            } else if (explicitEnabled) {
+                isPromptValid
+            } else {
+                isPromptValid
+            }
+
+            val finalPrompt = if (effectiveEnabled) promptString else ""
+            val finalScenes = if (effectiveEnabled) sceneContents else emptyList()
+            val finalSceneItems = if (effectiveEnabled) parsedSceneItems else emptyList()
+            val finalSceneCount = if (effectiveEnabled) {
+                if (targetSceneCount > 0) targetSceneCount else finalSceneItems.size
+            } else 0
+
+            val finalAudience = if (!extractedAudience.isNullOrEmpty()) {
+                parseCleanAudienceList(extractedAudience)
+            } else {
+                parseCleanAudienceList(whoItsForRaw)
+            }
+
+            return PromptAndAudienceResult(
+                generatePromptEnabled = effectiveEnabled,
+                generatePrompt = finalPrompt,
+                sceneCount = finalSceneCount,
+                scenes = finalScenes,
+                sceneItems = finalSceneItems,
+                audience = finalAudience,
+                extractedLink = extractedLink
+            )
+        }
+
+        fun parseTargetAudience(raw: Any?): List<String> = parseCleanAudienceList(raw)
+
+        /**
+         * Cleanly extracts human-readable audience bullet items.
+         * Strictly rejects JSON code, code_blocks, link_info, or metadata fields.
+         */
+        fun parseCleanAudienceList(raw: Any?): List<String> {
+            if (raw == null) return emptyList()
+            val rawList = when (raw) {
+                is List<*> -> raw.mapNotNull { it?.toString()?.trim() }
+                is Map<*, *> -> {
+                    val cand = raw["items"] ?: raw["who_its_for"] ?: raw["whoItsFor"] ?: raw["audience"] ?: raw["points"]
+                    if (cand != null && cand != raw) return parseCleanAudienceList(cand)
+                    emptyList()
+                }
+                is String -> {
+                    val trimmed = raw.trim()
+                    if (trimmed.isEmpty()) return emptyList()
+                    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+                        try {
+                            val m = jsonAdapter.fromJson(trimmed)
+                            if (m is Map<*, *>) {
+                                val cand = m["items"] ?: m["who_its_for"] ?: m["whoItsFor"] ?: m["audience"] ?: m["points"]
+                                if (cand != null) return parseCleanAudienceList(cand)
+                            }
+                        } catch (_: Exception) {}
+                        return emptyList()
+                    }
+                    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                        try {
+                            val l = jsonAdapter.fromJson(trimmed)
+                            if (l is List<*>) {
+                                return l.mapNotNull { it?.toString()?.trim() }
+                                    .map { cleanAudienceLine(it) }
+                                    .filter { isValidAudienceLine(it) }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    if (trimmed.contains("\n")) {
+                        trimmed.lines()
+                            .map { cleanAudienceLine(it) }
+                            .filter { it.isNotEmpty() }
+                    } else if (trimmed.contains(",") && trimmed.split(",").all { it.trim().split(Regex("""\s+""")).size <= 6 }) {
+                        trimmed.split(",").map { cleanAudienceLine(it) }.filter { it.isNotEmpty() }
+                    } else {
+                        listOf(cleanAudienceLine(trimmed))
+                    }
+                }
+                else -> listOf(cleanAudienceLine(raw.toString().trim()))
+            }
+
+            return rawList.map { cleanAudienceLine(it) }
+                .filter { isValidAudienceLine(it) }
+        }
+
+        private fun isValidAudienceLine(line: String): Boolean {
+            val trimmed = line.trim()
+            if (trimmed.length < 3) return false
+            if (trimmed.startsWith("{") || trimmed.startsWith("}") || trimmed.startsWith("[") || trimmed.startsWith("]")) return false
+            if (trimmed.contains("code_blocks", ignoreCase = true)) return false
+            if (trimmed.contains("link_info", ignoreCase = true)) return false
+            if (trimmed.contains("generate_prompt", ignoreCase = true)) return false
+            if (trimmed.contains("button_text", ignoreCase = true)) return false
+            if (trimmed.contains("playstore", ignoreCase = true)) return false
+            if (trimmed.contains("\"url\":", ignoreCase = true) || trimmed.contains("'url':", ignoreCase = true)) return false
+            if (trimmed.contains("\":\"") || trimmed.contains("\": \"") || trimmed.contains("\":{")) return false
+            if (trimmed.endsWith("}") || trimmed.endsWith("]") || trimmed.endsWith("\",") || trimmed.endsWith("\":")) return false
+            return true
+        }
+
+        private fun cleanAudienceLine(line: String): String {
+            return line.trim()
+                .removePrefix("\"")
+                .removeSuffix("\"")
+                .removeSuffix(",")
+                .removePrefix("-")
+                .removePrefix("•")
+                .removePrefix("*")
+                .removePrefix("✔")
+                .trim()
+        }
+
+        fun extractLinkUrl(raw: Any?): String? {
+            if (raw == null) return null
+            return when (raw) {
+                is String -> {
+                    val t = raw.trim()
+                    if (t.startsWith("http://") || t.startsWith("https://") || t.startsWith("market://")) {
+                        t
+                    } else if (t.startsWith("{") && t.endsWith("}")) {
+                        try {
+                            val m = jsonAdapter.fromJson(t)
+                            if (m is Map<*, *>) extractLinkFromMap(m) else extractUrlByRegex(t)
+                        } catch (_: Exception) {
+                            extractUrlByRegex(t)
+                        }
+                    } else {
+                        extractUrlByRegex(t)
+                    }
+                }
+                is Map<*, *> -> extractLinkFromMap(raw)
+                else -> null
+            }
+        }
+
+        fun extractLinkFromMap(map: Map<*, *>): String? {
+            val candidateKeys = listOf("url", "play_store_url", "playStoreUrl", "link", "store_url", "storeUrl", "href", "download_url")
+            for (k in candidateKeys) {
+                val v = map[k]
+                if (v is String && (v.startsWith("http://") || v.startsWith("https://") || v.startsWith("market://"))) {
+                    return v.trim()
+                }
+            }
+            val nested = map["link_info"] ?: map["linkInfo"] ?: map["link"]
+            if (nested is Map<*, *>) {
+                return extractLinkFromMap(nested)
+            }
+            return null
+        }
+
+        fun extractUrlByRegex(text: String): String? {
+            val regex = Regex("""https?://[^\s"'<>{}]+|market://[^\s"'<>{}]+""")
+            val match = regex.find(text)
+            return match?.value?.trim()?.removeSuffix("}")?.removeSuffix("]")?.removeSuffix("\"")?.removeSuffix("'")
+        }
 
         fun parseStringList(raw: Any?): List<String> {
             if (raw == null) return emptyList()

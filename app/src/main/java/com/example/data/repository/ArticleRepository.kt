@@ -185,7 +185,29 @@ Evaluate memory bandwidth overhead, thermal throttling mitigation, and battery d
 Part 3:
 Define an automated offline fallback pipeline when the neural accelerator is under heavy load.
             """.trimIndent(),
-            sceneCount = 3
+            sceneCount = 3,
+            scenes = listOf(
+                "Analyze hardware constraints for running quantized 4-bit neural models on mobile NPUs.",
+                "Evaluate memory bandwidth overhead, thermal throttling mitigation, and battery draw profiles.",
+                "Define an automated offline fallback pipeline when the neural accelerator is under heavy load."
+            ),
+            sceneItems = listOf(
+                com.example.data.model.SceneItem(
+                    part = 1,
+                    label = "Part 1",
+                    content = "Analyze hardware constraints for running quantized 4-bit neural models on mobile NPUs."
+                ),
+                com.example.data.model.SceneItem(
+                    part = 2,
+                    label = "Part 2",
+                    content = "Evaluate memory bandwidth overhead, thermal throttling mitigation, and battery draw profiles."
+                ),
+                com.example.data.model.SceneItem(
+                    part = 3,
+                    label = "Part 3",
+                    content = "Define an automated offline fallback pipeline when the neural accelerator is under heavy load."
+                )
+            )
         ),
         TechArticle(
             id = "passkeys-mobile-security",
@@ -520,7 +542,8 @@ Define an automated offline fallback pipeline when the neural accelerator is und
                 }
             }
             if (dtos.isNotEmpty()) {
-                // Map remote categories into the 4 official categories
+                val remoteCats = dtos.map { it.toDomain() }
+                _categories.value = mergeAndOrderCategories(remoteCats)
                 updateCategoryCounts(_articles.value)
                 _syncStatus.value = SyncStatus.SYNCED_LIVE
                 Result.success(_categories.value)
@@ -532,6 +555,29 @@ Define an automated offline fallback pipeline when the neural accelerator is und
             updateCategoryCounts(_articles.value)
             Result.success(_categories.value)
         }
+    }
+
+    private fun mergeAndOrderCategories(remoteCategories: List<AppCategory>): List<AppCategory> {
+        val baseTopics = defaultCategories.toMutableList()
+        val additionalCategories = mutableListOf<AppCategory>()
+
+        for (remote in remoteCategories) {
+            val (normId, normName) = normalizeCategory(remote.name.ifBlank { remote.id })
+            val index = baseTopics.indexOfFirst {
+                it.id == normId || it.name.equals(normName, ignoreCase = true) || it.name.equals(remote.name, ignoreCase = true)
+            }
+            if (index != -1) {
+                val existing = baseTopics[index]
+                baseTopics[index] = existing.copy(
+                    description = if (remote.description.isNotBlank()) remote.description else existing.description,
+                    iconEmoji = if (remote.iconEmoji.isNotBlank()) remote.iconEmoji else existing.iconEmoji
+                )
+            } else if (remote.name.isNotBlank()) {
+                additionalCategories.add(remote.copy(order = 4 + additionalCategories.size + 1))
+            }
+        }
+
+        return baseTopics + additionalCategories
     }
 
     suspend fun fetchPosts(): Result<List<TechArticle>> = withContext(Dispatchers.IO) {
@@ -652,7 +698,12 @@ Define an automated offline fallback pipeline when the neural accelerator is und
 
         _categories.update { list ->
             list.map { category ->
-                val count = countByCatId[category.id] ?: countByCatName[category.name] ?: 0
+                val (normId, normName) = normalizeCategory(category.name)
+                val count = countByCatId[category.id]
+                    ?: countByCatId[normId]
+                    ?: countByCatName[category.name]
+                    ?: countByCatName[normName]
+                    ?: 0
                 // Ensure at least 2 is shown when suitable articles are loaded
                 category.copy(articleCount = maxOf(count, 2))
             }

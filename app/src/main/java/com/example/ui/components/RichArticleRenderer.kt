@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.TechArticle
 import com.example.utils.ArticleSanitizer
 import com.example.utils.IntentUtils
+import com.example.utils.SceneSplitter
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
@@ -405,21 +406,53 @@ fun parseArticleContent(
         }
     }
 
-    // If an explicit prompt was provided and no code blocks exist in the content
-    if (prompt.isNotBlank() && blocks.none { it is ArticleBlock.CodeBlock }) {
-        val promptTrimmed = prompt.trim()
-        if (promptTrimmed.isNotEmpty()) {
-            blocks.add(
-                ArticleBlock.CodeBlock(
-                    code = promptTrimmed,
-                    showCopyButton = true,
-                    title = "Prompt"
+    // Post-process blocks: Parse and split code blocks into separate sequential cards
+    // Headers: "Part 1", "Part 2", "Part 3", and so forth.
+    val finalBlocks = mutableListOf<ArticleBlock>()
+    var codeBlockCounter = 1
+
+    for (block in blocks) {
+        if (block is ArticleBlock.CodeBlock) {
+            val naturalScenes = SceneSplitter.detectNaturalScenes(block.code)
+            if (naturalScenes.size > 1) {
+                // Split multi-part code block into separate sequential cards
+                for (scene in naturalScenes) {
+                    val cleanSceneCode = SceneSplitter.cleanPartContent(scene)
+                    if (cleanSceneCode.isNotEmpty()) {
+                        finalBlocks.add(
+                            ArticleBlock.CodeBlock(
+                                code = cleanSceneCode,
+                                showCopyButton = block.showCopyButton,
+                                startIndent = block.startIndent,
+                                title = "Part $codeBlockCounter"
+                            )
+                        )
+                        codeBlockCounter++
+                    }
+                }
+            } else {
+                val assignedTitle = if (block.title.startsWith("Part", ignoreCase = true)) {
+                    block.title
+                } else if (block.title.equals("Summary", ignoreCase = true)) {
+                    "Summary"
+                } else {
+                    "Part $codeBlockCounter"
+                }
+                val cleanCode = SceneSplitter.cleanPartContent(block.code)
+                finalBlocks.add(
+                    block.copy(
+                        code = cleanCode,
+                        title = assignedTitle
+                    )
                 )
-            )
+                codeBlockCounter++
+            }
+        } else {
+            finalBlocks.add(block)
         }
     }
 
-    return blocks
+    return finalBlocks
 }
 
 /**
@@ -544,6 +577,10 @@ fun parseHtmlBlocks(
 ): List<ArticleBlock> {
     val doc = Jsoup.parseBodyFragment(sanitizedHtml)
     val body = doc.body()
+
+    // Strip legacy prompt boxes and generate prompt containers so prompts only appear in GeneratePromptSection
+    body.select("pre.prompt-box, div.article-generate-prompt-container, div.prompt-container, div.prompt-box, pre.prompt, .article-generate-prompt-container, .prompt-box, .generate-prompt-box, .generate-prompt-container, [data-ui='prompt-box'], .article-link-btn, .link-btn, [data-ui='link-button']").remove()
+
     val blocks = mutableListOf<ArticleBlock>()
 
     for (node in body.childNodes()) {

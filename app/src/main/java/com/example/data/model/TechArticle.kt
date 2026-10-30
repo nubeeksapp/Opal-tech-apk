@@ -1,5 +1,11 @@
 package com.example.data.model
 
+data class SceneItem(
+    val part: Int = 1,
+    val label: String = "Part 1",
+    val content: String = ""
+)
+
 data class TechArticle(
     val id: String,
     val title: String,
@@ -26,7 +32,8 @@ data class TechArticle(
     val generatePromptEnabled: Boolean = false,
     val generatePrompt: String = "",
     val sceneCount: Int = 0,
-    val scenes: List<String> = emptyList()
+    val scenes: List<String> = emptyList(),
+    val sceneItems: List<SceneItem> = emptyList()
 )
 
 enum class TextSizePreference(val displayName: String, val scale: Float) {

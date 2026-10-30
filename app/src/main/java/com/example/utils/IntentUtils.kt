@@ -98,6 +98,38 @@ object IntentUtils {
         }
     }
 
+    fun openAdaptiveLink(context: Context, linkUrl: String, packageName: String = "") {
+        val trimmed = linkUrl.trim()
+        if (trimmed.isEmpty()) return
+
+        val isPlayStore = trimmed.contains("play.google.com", ignoreCase = true) ||
+            trimmed.startsWith("market://", ignoreCase = true)
+
+        if (isPlayStore) {
+            openPlayStore(context, packageName, trimmed)
+        } else {
+            openWebUrl(context, trimmed)
+        }
+    }
+
+    fun openWebUrl(context: Context, url: String) {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return
+        val targetUrl = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            trimmed
+        } else {
+            "https://$trimmed"
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            Toast.makeText(context, "Unable to open link in browser", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun copyToClipboard(context: Context, text: String, label: String = "Prompt"): Boolean {
         val cleanText = text.trim()
         if (cleanText.isEmpty()) {
@@ -129,16 +161,19 @@ object IntentUtils {
                     }
                 }
             } catch (_: SecurityException) {
-                // Background reading restrictions on Android 10+; write succeeded without error
                 isVerified = true
             } catch (_: Exception) {
                 isVerified = true
             }
 
-            val feedbackText = if (clipLabel.isNotBlank() && clipLabel != "Prompt" && clipLabel != "Text") {
-                "$clipLabel copied!"
+            val feedbackText = if (clipLabel.startsWith("Part", ignoreCase = true)) {
+                "Copied $clipLabel to clipboard"
+            } else if (clipLabel.equals("Prompt", ignoreCase = true) || clipLabel.equals("Complete Prompt", ignoreCase = true)) {
+                "Prompt copied to clipboard"
+            } else if (clipLabel.isNotBlank() && clipLabel != "Text") {
+                "Copied $clipLabel to clipboard"
             } else {
-                "Copied!"
+                "Copied to clipboard"
             }
             Toast.makeText(context, feedbackText, Toast.LENGTH_SHORT).show()
             true

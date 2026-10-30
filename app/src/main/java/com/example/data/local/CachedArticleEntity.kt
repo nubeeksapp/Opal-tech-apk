@@ -61,7 +61,16 @@ data class CachedArticleEntity(
             generatePromptEnabled = generatePromptEnabled,
             generatePrompt = generatePrompt,
             sceneCount = sceneCount,
-            scenes = scenes
+            scenes = scenes,
+            sceneItems = if (scenes.isNotEmpty()) {
+                scenes.mapIndexed { idx, s ->
+                    com.example.data.model.SceneItem(
+                        part = idx + 1,
+                        label = "Part ${idx + 1}",
+                        content = s
+                    )
+                }
+            } else emptyList()
         )
     }
 
@@ -92,8 +101,8 @@ data class CachedArticleEntity(
                 prompt = article.prompt,
                 generatePromptEnabled = article.generatePromptEnabled,
                 generatePrompt = article.generatePrompt,
-                sceneCount = article.sceneCount,
-                scenes = article.scenes,
+                sceneCount = if (article.sceneCount > 0) article.sceneCount else article.sceneItems.size.coerceAtLeast(article.scenes.size),
+                scenes = article.scenes.ifEmpty { article.sceneItems.map { it.content } },
                 lastViewedTimestamp = timestamp
             )
         }
