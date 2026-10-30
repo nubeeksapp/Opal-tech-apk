@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS public.posts (
     play_store_url TEXT DEFAULT '',
     target_audience JSONB DEFAULT '[]'::jsonb,
     key_features JSONB DEFAULT '[]'::jsonb,
+    prompt TEXT DEFAULT '',
+    generate_prompt TEXT DEFAULT '',
+    generate_prompt_enabled BOOLEAN DEFAULT false,
+    scene_count INTEGER DEFAULT 0,
+    scenes JSONB DEFAULT '[]'::jsonb,
     view_count BIGINT DEFAULT 0,
     is_published BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -32,6 +37,11 @@ CREATE TABLE IF NOT EXISTS public.posts (
 -- Add any missing columns if table already existed previously
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS target_audience JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS key_features JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS prompt TEXT DEFAULT '';
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS generate_prompt TEXT DEFAULT '';
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS generate_prompt_enabled BOOLEAN DEFAULT false;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS scene_count INTEGER DEFAULT 0;
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS scenes JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS view_count BIGINT DEFAULT 0;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT true;
 ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS play_store_url TEXT DEFAULT '';

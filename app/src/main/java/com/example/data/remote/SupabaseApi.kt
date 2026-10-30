@@ -59,6 +59,28 @@ interface SupabaseApi {
         @Query("order") order: String? = null
     ): List<SupabasePostDto>
 
+    @GET("tech_articles")
+    suspend fun getTechArticles(
+        @Query("select") select: String = "*",
+        @Query("order") order: String = "publish_date.desc"
+    ): List<SupabasePostDto>
+
+    @GET("tech_articles")
+    suspend fun getTechArticlesRaw(
+        @Query("select") select: String = "*"
+    ): List<SupabasePostDto>
+
+    @GET("blogs")
+    suspend fun getBlogs(
+        @Query("select") select: String = "*",
+        @Query("order") order: String = "publish_date.desc"
+    ): List<SupabasePostDto>
+
+    @GET("blogs")
+    suspend fun getBlogsRaw(
+        @Query("select") select: String = "*"
+    ): List<SupabasePostDto>
+
     @POST("rpc/increment_view_count")
     suspend fun incrementViewCountRpc(
         @Body body: Map<String, String>

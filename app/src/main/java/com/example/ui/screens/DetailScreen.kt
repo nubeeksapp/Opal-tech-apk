@@ -294,9 +294,15 @@ fun DetailScreen(
                 )
 
                 // Optional Generate Prompt Section (placed at the end of the normal body content)
-                if (article.generatePromptEnabled && article.generatePrompt.isNotBlank()) {
+                val effectivePrompt = article.generatePrompt.ifBlank { article.prompt }.trim()
+                if (effectivePrompt.isNotBlank() && (article.generatePromptEnabled || article.generatePrompt.isNotBlank())) {
+                    val promptArticle = if (article.generatePrompt.isBlank()) {
+                        article.copy(generatePrompt = effectivePrompt, generatePromptEnabled = true)
+                    } else {
+                        article
+                    }
                     com.example.ui.components.GeneratePromptSection(
-                        article = article,
+                        article = promptArticle,
                         baseFontSize = baseFontSize,
                         lineSpacing = lineSpacing
                     )

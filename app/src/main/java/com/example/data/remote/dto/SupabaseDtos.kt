@@ -57,14 +57,27 @@ data class SupabasePostDto(
     @param:Json(name = "body") val body: String? = null,
     @param:Json(name = "description") val description: String? = null,
     @param:Json(name = "full_description") val fullDescription: Any? = null,
+    @param:Json(name = "article_content") val articleContent: String? = null,
+    @param:Json(name = "post_content") val postContent: String? = null,
+    @param:Json(name = "details") val details: String? = null,
+    @param:Json(name = "text") val text: String? = null,
+    @param:Json(name = "article") val article: String? = null,
     @param:Json(name = "thumbnail_url") val thumbnailUrl: String? = null,
     @param:Json(name = "image_url") val imageUrl: String? = null,
     @param:Json(name = "thumbnail") val thumbnail: String? = null,
     @param:Json(name = "image") val image: String? = null,
     @param:Json(name = "cover_image") val coverImage: String? = null,
+    @param:Json(name = "featured_image") val featuredImage: String? = null,
+    @param:Json(name = "feature_image") val featureImage: String? = null,
+    @param:Json(name = "thumb") val thumb: String? = null,
+    @param:Json(name = "poster") val poster: String? = null,
+    @param:Json(name = "photo") val photo: String? = null,
+    @param:Json(name = "banner") val banner: String? = null,
+    @param:Json(name = "picture") val picture: String? = null,
     @param:Json(name = "category_id") val categoryId: Any? = null,
     @param:Json(name = "category") val category: Any? = null,
     @param:Json(name = "category_name") val categoryName: String? = null,
+    @param:Json(name = "cat_name") val catName: String? = null,
     @param:Json(name = "publish_date") val publishDate: String? = null,
     @param:Json(name = "published_at") val publishedAt: String? = null,
     @param:Json(name = "created_at") val createdAt: String? = null,
@@ -88,14 +101,24 @@ data class SupabasePostDto(
     @param:Json(name = "code_block") val codeBlock: String? = null,
     @param:Json(name = "code") val code: String? = null,
     @param:Json(name = "prompt_text") val promptText: String? = null,
+    @param:Json(name = "ai_prompt") val aiPrompt: String? = null,
+    @param:Json(name = "system_prompt") val systemPrompt: String? = null,
+    @param:Json(name = "prompts") val prompts: String? = null,
     @param:Json(name = "generate_prompt_enabled") val generatePromptEnabled: Boolean? = null,
     @param:Json(name = "enable_generate_prompt") val enableGeneratePrompt: Boolean? = null,
     @param:Json(name = "is_generate_prompt") val isGeneratePrompt: Boolean? = null,
+    @param:Json(name = "prompt_enabled") val promptEnabled: Boolean? = null,
+    @param:Json(name = "show_prompt") val showPrompt: Boolean? = null,
+    @param:Json(name = "has_prompt") val hasPrompt: Boolean? = null,
     @param:Json(name = "generate_prompt") val generatePrompt: String? = null,
+    @param:Json(name = "generated_prompt") val generatedPrompt: String? = null,
     @param:Json(name = "scene_count") val sceneCount: Any? = null,
     @param:Json(name = "scenes_count") val scenesCount: Any? = null,
+    @param:Json(name = "parts_count") val partsCount: Any? = null,
     @param:Json(name = "scenes") val scenes: Any? = null,
     @param:Json(name = "scene_parts") val sceneParts: Any? = null,
+    @param:Json(name = "parts") val parts: Any? = null,
+    @param:Json(name = "scene_list") val sceneList: Any? = null,
     @param:Json(name = "is_published") val isPublished: Boolean? = null,
     @param:Json(name = "status") val status: String? = null
 ) {
@@ -109,6 +132,7 @@ data class SupabasePostDto(
             ?: ""
 
         val rawCategoryName = categoryName?.trim()
+            ?: catName?.trim()
             ?: (category as? String)?.takeIf { it.isNotBlank() && !it.contains("-") }
         val lookedUpCat = categoryNameLookup(catIdStr).ifBlank { catIdStr }
         val resolvedCatName = rawCategoryName ?: lookedUpCat
@@ -122,6 +146,11 @@ data class SupabasePostDto(
         val effectiveContent = content?.trim()
             ?: body?.trim()
             ?: description?.trim()
+            ?: articleContent?.trim()
+            ?: postContent?.trim()
+            ?: details?.trim()
+            ?: text?.trim()
+            ?: article?.trim()
             ?: ""
 
         val rawThumbnail = thumbnailUrl?.trim()
@@ -129,6 +158,13 @@ data class SupabasePostDto(
             ?: thumbnail?.trim()
             ?: image?.trim()
             ?: coverImage?.trim()
+            ?: featuredImage?.trim()
+            ?: featureImage?.trim()
+            ?: thumb?.trim()
+            ?: poster?.trim()
+            ?: photo?.trim()
+            ?: banner?.trim()
+            ?: picture?.trim()
 
         val resolvedThumbnail = resolveStorageUrl(rawThumbnail)
 
@@ -209,33 +245,74 @@ data class SupabasePostDto(
             content = effectiveContent,
             contentFormat = contentFormat?.trim() ?: format?.trim() ?: "",
             prompt = prompt?.trim()
+                ?: aiPrompt?.trim()
+                ?: promptText?.trim()
+                ?: systemPrompt?.trim()
+                ?: prompts?.trim()
                 ?: codeBlock?.trim()
                 ?: code?.trim()
-                ?: promptText?.trim()
                 ?: "",
-            generatePromptEnabled = when {
-                generatePromptEnabled == false || enableGeneratePrompt == false || isGeneratePrompt == false -> false
-                generatePromptEnabled == true || enableGeneratePrompt == true || isGeneratePrompt == true -> {
-                    val candidate = generatePrompt?.trim() ?: prompt?.trim() ?: codeBlock?.trim() ?: promptText?.trim() ?: ""
-                    candidate.isNotBlank()
+            generatePromptEnabled = run {
+                val candidatePrompt = generatePrompt?.trim()?.ifBlank { null }
+                    ?: prompt?.trim()?.ifBlank { null }
+                    ?: aiPrompt?.trim()?.ifBlank { null }
+                    ?: promptText?.trim()?.ifBlank { null }
+                    ?: generatedPrompt?.trim()?.ifBlank { null }
+                    ?: systemPrompt?.trim()?.ifBlank { null }
+                    ?: prompts?.trim()?.ifBlank { null }
+                    ?: codeBlock?.trim()?.ifBlank { null }
+                    ?: code?.trim()?.ifBlank { null }
+                    ?: ""
+
+                val explicitlyDisabled = generatePromptEnabled == false ||
+                    enableGeneratePrompt == false ||
+                    isGeneratePrompt == false ||
+                    promptEnabled == false ||
+                    showPrompt == false
+
+                val explicitlyEnabled = generatePromptEnabled == true ||
+                    enableGeneratePrompt == true ||
+                    isGeneratePrompt == true ||
+                    promptEnabled == true ||
+                    showPrompt == true ||
+                    hasPrompt == true
+
+                when {
+                    explicitlyDisabled -> false
+                    explicitlyEnabled -> candidatePrompt.isNotBlank()
+                    candidatePrompt.isNotBlank() -> true
+                    else -> false
                 }
-                !generatePrompt.isNullOrBlank() -> true
-                else -> false
             },
-            generatePrompt = generatePrompt?.trim()?.ifBlank { null }
-                ?: (if (generatePromptEnabled == true || enableGeneratePrompt == true || isGeneratePrompt == true) {
-                    prompt?.trim() ?: codeBlock?.trim() ?: code?.trim() ?: promptText?.trim()
-                } else null)
-                ?: "",
-            sceneCount = when (val sc = sceneCount ?: scenesCount) {
+            generatePrompt = run {
+                val candidatePrompt = generatePrompt?.trim()?.ifBlank { null }
+                    ?: prompt?.trim()?.ifBlank { null }
+                    ?: aiPrompt?.trim()?.ifBlank { null }
+                    ?: promptText?.trim()?.ifBlank { null }
+                    ?: generatedPrompt?.trim()?.ifBlank { null }
+                    ?: systemPrompt?.trim()?.ifBlank { null }
+                    ?: prompts?.trim()?.ifBlank { null }
+                    ?: codeBlock?.trim()?.ifBlank { null }
+                    ?: code?.trim()?.ifBlank { null }
+                    ?: ""
+
+                val explicitlyDisabled = generatePromptEnabled == false ||
+                    enableGeneratePrompt == false ||
+                    isGeneratePrompt == false ||
+                    promptEnabled == false ||
+                    showPrompt == false
+
+                if (!explicitlyDisabled) candidatePrompt else ""
+            },
+            sceneCount = when (val sc = sceneCount ?: scenesCount ?: partsCount) {
                 is Number -> sc.toInt()
                 is String -> sc.trim().toIntOrNull() ?: 0
                 else -> 0
             }.let { count ->
-                val parsed = parseAdminScenes(scenes ?: sceneParts)
+                val parsed = parseAdminScenes(scenes ?: sceneParts ?: parts ?: sceneList)
                 if (count > 0) count else if (parsed.isNotEmpty()) parsed.size else 0
             },
-            scenes = parseAdminScenes(scenes ?: sceneParts)
+            scenes = parseAdminScenes(scenes ?: sceneParts ?: parts ?: sceneList)
         )
     }
 
@@ -252,10 +329,13 @@ data class SupabasePostDto(
             }
             val normalizedBase = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
             val cleanPath = trimmed.removePrefix("/")
-            return if (cleanPath.startsWith("storage/v1/object/public/")) {
-                "$normalizedBase/$cleanPath"
-            } else {
-                "$normalizedBase/storage/v1/object/public/$cleanPath"
+            return when {
+                cleanPath.startsWith("storage/v1/object/public/") -> "$normalizedBase/$cleanPath"
+                cleanPath.startsWith("storage/v1/object/sign/") -> "$normalizedBase/$cleanPath"
+                cleanPath.startsWith("thumbnails/") || cleanPath.startsWith("images/") ||
+                    cleanPath.startsWith("covers/") || cleanPath.startsWith("posts/") ||
+                    cleanPath.startsWith("public/") -> "$normalizedBase/storage/v1/object/public/$cleanPath"
+                else -> "$normalizedBase/storage/v1/object/public/thumbnails/$cleanPath"
             }
         }
 

@@ -551,7 +551,22 @@ Define an automated offline fallback pipeline when the neural accelerator is und
                         try {
                             api.getArticles()
                         } catch (e2: retrofit2.HttpException) {
-                            if (e2.code() == 400) api.getArticlesRaw() else throw e2
+                            when (e2.code()) {
+                                400 -> api.getArticlesRaw()
+                                404 -> {
+                                    try {
+                                        api.getTechArticles()
+                                    } catch (e3: retrofit2.HttpException) {
+                                        if (e3.code() == 400) api.getTechArticlesRaw()
+                                        else try {
+                                            api.getBlogs()
+                                        } catch (e4: retrofit2.HttpException) {
+                                            if (e4.code() == 400) api.getBlogsRaw() else throw e4
+                                        }
+                                    }
+                                }
+                                else -> throw e2
+                            }
                         }
                     }
                     else -> throw e
