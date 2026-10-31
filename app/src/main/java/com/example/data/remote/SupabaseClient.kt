@@ -14,8 +14,16 @@ object SupabaseClient {
 
     private const val TAG = "SupabaseClient"
 
-    val supabaseUrl: String = BuildConfig.SUPABASE_URL
-    val supabaseAnonKey: String = BuildConfig.SUPABASE_ANON_KEY
+    private const val LIVE_SUPABASE_URL = "https://fabjwphsotffrmofwksr.supabase.co"
+    private const val LIVE_ANON_KEY = "sb_publishable_M-1gqzd47xis9gHTTHXT7A_GkQlPJnt"
+
+    val supabaseUrl: String = BuildConfig.SUPABASE_URL.takeIf {
+        it.isNotBlank() && !it.contains("your-project", ignoreCase = true)
+    } ?: LIVE_SUPABASE_URL
+
+    val supabaseAnonKey: String = BuildConfig.SUPABASE_ANON_KEY.takeIf {
+        it.isNotBlank() && !it.contains("your-anon-key", ignoreCase = true)
+    } ?: LIVE_ANON_KEY
 
     val isConfigured: Boolean by lazy {
         supabaseUrl.isNotBlank() &&

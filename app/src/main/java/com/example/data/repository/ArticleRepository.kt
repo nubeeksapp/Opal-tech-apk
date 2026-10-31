@@ -43,10 +43,12 @@ class ArticleRepository(private val context: Context? = null) {
                 raw.contains("Opal", ignoreCase = true) ||
                     raw.contains("technology", ignoreCase = true) ||
                     raw.contains("security", ignoreCase = true) ||
+                    raw.contains("cat-opaltech", ignoreCase = true) ||
                     raw.equals("opal_tech", ignoreCase = true) -> {
                     CAT_OPAL_TECH_ID to CAT_OPAL_TECH_NAME
                 }
                 raw.contains("Tips", ignoreCase = true) ||
+                    raw.contains("cat-techtips", ignoreCase = true) ||
                     raw.equals("tech_tips", ignoreCase = true) -> {
                     CAT_TECH_TIPS_ID to CAT_TECH_TIPS_NAME
                 }
@@ -55,12 +57,14 @@ class ArticleRepository(private val context: Context? = null) {
                     raw.contains("work", ignoreCase = true) ||
                     raw.contains("freelanc", ignoreCase = true) ||
                     raw.contains("earn", ignoreCase = true) ||
+                    raw.contains("cat-onlinejobs", ignoreCase = true) ||
                     raw.equals("online_jobs", ignoreCase = true) -> {
                     CAT_ONLINE_JOBS_ID to CAT_ONLINE_JOBS_NAME
                 }
                 raw.contains("Review", ignoreCase = true) ||
                     raw.contains("Tool", ignoreCase = true) ||
                     raw.contains("apps", ignoreCase = true) ||
+                    raw.contains("cat-appreview", ignoreCase = true) ||
                     raw.equals("app_review", ignoreCase = true) -> {
                     CAT_APP_REVIEW_ID to CAT_APP_REVIEW_NAME
                 }

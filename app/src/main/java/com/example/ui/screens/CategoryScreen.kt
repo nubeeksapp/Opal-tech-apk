@@ -209,6 +209,18 @@ private fun CategoryGridItem(
     category: AppCategory,
     onClick: () -> Unit
 ) {
+    val logoRes = when {
+        category.id.contains("opal", ignoreCase = true) || category.name.contains("opal", ignoreCase = true) ->
+            R.drawable.cat_icon_opal_tech
+        category.id.contains("tips", ignoreCase = true) || category.name.contains("tips", ignoreCase = true) ->
+            R.drawable.cat_icon_tech_tips
+        category.id.contains("job", ignoreCase = true) || category.name.contains("job", ignoreCase = true) ->
+            R.drawable.cat_icon_online_jobs
+        category.id.contains("review", ignoreCase = true) || category.name.contains("review", ignoreCase = true) ->
+            R.drawable.cat_icon_app_review
+        else -> R.drawable.cat_icon_opal_tech
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,70 +228,15 @@ private fun CategoryGridItem(
             .testTag("category_item_${category.id}"),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Rounded Square Tile (styled after screenshot 8 with teal/blue layered ring and brand icon)
-        Card(
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Transparent
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        Image(
+            painter = painterResource(id = logoRes),
+            contentDescription = category.name,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF00B4D8),
-                                Color(0xFF0077B6),
-                                Color(0xFF005088)
-                            )
-                        )
-                    )
-                    .border(
-                        width = 4.dp,
-                        color = Color(0xFF48CAE4).copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(22.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                // Inner layered circle badge with Opal Tech icon and text
-                Box(
-                    modifier = Modifier
-                        .size(62.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF002F5E)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.opal_tech_icon_1791412564103),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Opal",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Tech",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF38BDF8)
-                        )
-                    }
-                }
-            }
-        }
+                .clip(RoundedCornerShape(22.dp))
+        )
 
         Spacer(modifier = Modifier.height(6.dp))
 

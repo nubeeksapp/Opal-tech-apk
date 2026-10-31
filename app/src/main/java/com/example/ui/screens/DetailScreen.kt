@@ -419,15 +419,7 @@ fun DetailScreen(
 }
 
 /**
- * Single Action Button at the very end of the article ("Open" vs "Get it now").
- *
- * Rules:
- * - If Google Play URL (contains "play.google.com" or "market.android.com" or "market://"):
- *   Button text: "Open", solid Google Play Green (#01875F), white text, 12dp rounded corners, Play Store icon.
- * - If other external link:
- *   Button text: "Get it now", solid Accent Blue (#0066FF), white text, 12dp rounded corners, external link arrow icon.
- * - Opens URL via Intent(Intent.ACTION_VIEW, Uri.parse(url)).
- * - If playStoreUrl is null or blank, completely hidden.
+ * Action Link at the end of the article in bold link form ("Open" vs "Get it now") without background.
  */
 @Composable
 private fun ArticleActionButton(
@@ -445,60 +437,42 @@ private fun ArticleActionButton(
     }
 
     val buttonText = if (isPlayStore) "Open" else "Get it now"
-    val containerBg = if (isPlayStore) Color(0xFF01875F) else Color(0xFF0066FF)
+    val linkColor = Color(0xFF0066FF)
 
-    Button(
-        onClick = {
-            try {
-                val targetUrl = if (link.startsWith("http://") || link.startsWith("https://") || link.startsWith("market://")) {
-                    link
-                } else {
-                    "https://$link"
-                }
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
-            } catch (_: Exception) {
-                IntentUtils.openAdaptiveLink(context, link, article.appPackageName)
-            }
-        },
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerBg,
-            contentColor = Color.White
-        ),
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .testTag("article_action_button")
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .clickable {
+                    try {
+                        val targetUrl = if (link.startsWith("http://") || link.startsWith("https://") || link.startsWith("market://")) {
+                            link
+                        } else {
+                            "https://$link"
+                        }
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {
+                        IntentUtils.openAdaptiveLink(context, link, article.appPackageName)
+                    }
+                }
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .testTag("article_action_button")
         ) {
-            if (isPlayStore) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Open in Google Play Store",
-                    modifier = Modifier.size(20.dp),
-                    tint = Color.White
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = "Get it now",
-                    modifier = Modifier.size(18.dp),
-                    tint = Color.White
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = buttonText,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color.White
+                    fontSize = 17.sp,
+                    color = linkColor
                 )
             )
         }

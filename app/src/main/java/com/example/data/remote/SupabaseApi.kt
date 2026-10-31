@@ -25,7 +25,7 @@ interface SupabaseApi {
     @GET("posts")
     suspend fun getPosts(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "publish_date.desc"
+        @Query("order") order: String = "created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("posts")
@@ -44,7 +44,7 @@ interface SupabaseApi {
     @GET("articles")
     suspend fun getArticles(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "publish_date.desc"
+        @Query("order") order: String = "created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("articles")
@@ -62,7 +62,7 @@ interface SupabaseApi {
     @GET("tech_articles")
     suspend fun getTechArticles(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "publish_date.desc"
+        @Query("order") order: String = "created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("tech_articles")

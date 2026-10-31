@@ -28,8 +28,10 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +63,20 @@ fun RecentFeedScreen(
     searchQuery: String = "",
     onClearSearchAndReturnHome: () -> Unit = {}
 ) {
+    val listState = rememberLazyListState()
+
+    // Ensure that whenever users open the app, the home page starts from the very top (index 0, offset 0)
+    LaunchedEffect(Unit) {
+        listState.scrollToItem(0, 0)
+    }
+
+    // Also snap to top on refresh
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            listState.scrollToItem(0, 0)
+        }
+    }
+
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
@@ -166,6 +182,7 @@ fun RecentFeedScreen(
                     } else {
                         // Article Feed: First article is Hero if on default home feed; all others are compact list cards
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
