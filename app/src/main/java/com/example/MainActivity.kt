@@ -170,6 +170,11 @@ fun OpalTechApp(viewModel: OpalTechViewModel) {
         }
     }
 
+    // Automatically sync fresh content whenever the app returns to foreground
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshSilent()
+    }
+
     // Collect snackbar messages
     LaunchedEffect(Unit) {
         viewModel.snackBarMessage.collectLatest { msg ->

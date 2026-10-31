@@ -260,7 +260,8 @@ data class SupabasePostDto(
             if (baseUrl.isBlank() || baseUrl.contains("your-project", ignoreCase = true)) {
                 return trimmed
             }
-            val normalizedBase = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
+            val cleanBase = baseUrl.substringBefore("/rest/v1").trimEnd('/')
+            val normalizedBase = if (cleanBase.endsWith("/")) cleanBase.dropLast(1) else cleanBase
             val cleanPath = trimmed.removePrefix("/")
             return when {
                 cleanPath.startsWith("storage/v1/object/public/") -> "$normalizedBase/$cleanPath"

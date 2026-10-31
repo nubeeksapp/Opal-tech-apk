@@ -525,6 +525,20 @@ class OpalTechViewModel @JvmOverloads constructor(
         repository.updatePlayStoreLink(articleId, playStoreUrl)
     }
 
+    fun refreshSilent() {
+        viewModelScope.launch {
+            repository.refreshAll()
+            val savedCounts = cacheRepository.getAllViewCounts()
+            if (savedCounts.isNotEmpty()) {
+                repository.applyPersistentViewCounts(savedCounts)
+            }
+            val currentArticles = repository.articles.value
+            if (currentArticles.isNotEmpty()) {
+                cacheRepository.cacheArticles(currentArticles)
+            }
+        }
+    }
+
     fun refreshFeed() {
         viewModelScope.launch {
             _isRefreshing.value = true
