@@ -13,6 +13,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -42,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fcm.FcmNotificationManager
 import com.example.ui.components.OpalBottomNav
 import com.example.ui.components.OpalTopHeader
+import com.example.ui.screens.AppOpeningScreen
 import com.example.ui.screens.CategoryScreen
 import com.example.ui.screens.DetailScreen
 import com.example.ui.screens.FavoriteScreen
@@ -65,16 +68,33 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: OpalTechViewModel = viewModel()
             val preferences by viewModel.userPreferences.collectAsStateWithLifecycle()
+            var isOpeningDisplayVisible by remember { mutableStateOf(true) }
+
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(2000L)
+                isOpeningDisplayVisible = false
+            }
 
             LaunchedEffect(pendingArticleId) {
                 pendingArticleId?.let { id ->
                     viewModel.openDetail(id)
                     pendingArticleId = null
+                    isOpeningDisplayVisible = false
                 }
             }
 
             OpalTechTheme(darkTheme = preferences.isDarkMode) {
-                OpalTechApp(viewModel = viewModel)
+                Crossfade(
+                    targetState = isOpeningDisplayVisible,
+                    animationSpec = tween(durationMillis = 400),
+                    label = "opening_crossfade"
+                ) { isOpening ->
+                    if (isOpening) {
+                        AppOpeningScreen(onDismiss = { isOpeningDisplayVisible = false })
+                    } else {
+                        OpalTechApp(viewModel = viewModel)
+                    }
+                }
             }
         }
     }
