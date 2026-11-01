@@ -1,53 +1,76 @@
-name: Publish Pre-Compiled APK Release
+name: Build and Publish Latest APK
 
 on:
   push:
     branches:
       - main
       - master
-    paths:
-      - 'apk-distribution/app-debug.apk'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  publish:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Validate APK and Checksum
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Prepare Keystore and Environment
         run: |
-          test -f apk-distribution/app-debug.apk || { echo "APK file not found!"; exit 1; }
-          test -s apk-distribution/app-debug.apk || { echo "APK file is empty!"; exit 1; }
-          test -f apk-distribution/app-debug.apk.sha256 || { echo "Checksum file not found!"; exit 1; }
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+          chmod +x gradlew
+
+      - name: Compile Latest Debug APK
+        run: |
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Validate Compiled APK
+        run: |
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK_PATH" || { echo "APK was not generated!"; exit 1; }
+          test -s "$APK_PATH" || { echo "APK file is empty!"; exit 1; }
+          unzip -tq "$APK_PATH" || { echo "APK ZIP integrity check failed!"; exit 1; }
+          mkdir -p apk-distribution
+          cp "$APK_PATH" apk-distribution/app-debug.apk
           cd apk-distribution
-          sha256sum -c app-debug.apk.sha256 || { echo "SHA-256 verification failed!"; exit 1; }
-          unzip -tq app-debug.apk || { echo "APK ZIP integrity test failed!"; exit 1; }
+          sha256sum app-debug.apk > app-debug.apk.sha256
+          sha256sum -c app-debug.apk.sha256
 
       - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
-          RELEASE_TITLE="Debug APK Build #${{ github.run_number }}"
-          
-          gh release create "${TAG_NAME}" apk-distribution/app-debug.apk \
+          TAG_NAME="v1.0.${{ github.run_number }}"
+          RELEASE_TITLE="Opal Tech v1.0.${{ github.run_number }}"
+          APK_FILE="apk-distribution/app-debug.apk"
+
+          # Create the release and mark it as the official latest release
+          gh release create "${TAG_NAME}" "${APK_FILE}" \
             --title "${RELEASE_TITLE}" \
-            --notes "Installable Debug APK compiled natively inside Google AI Studio. Validated ZIP structure and SHA-256." \
+            --notes "Latest installable Debug APK for Opal Tech built automatically from commit ${{ github.sha }}. Verified ZIP structure and SHA-256." \
             --latest
 
-          APK_SIZE=$(ls -lh apk-distribution/app-debug.apk | awk '{print $5}')
-          APK_SHA=$(cat apk-distribution/app-debug.apk.sha256 | awk '{print $1}')
+          APK_SIZE=$(ls -lh "${APK_FILE}" | awk '{print $5}')
+          APK_SHA=$(awk '{print $1}' apk-distribution/app-debug.apk.sha256)
           REPO_URL="${{ github.server_url }}/${{ github.repository }}"
 
-          echo "### APK Build & Publication Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Latest APK Build & Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Release Tag**: \`${TAG_NAME}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **APK File**: \`app-debug.apk\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **APK Size**: \`${APK_SIZE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **APK Filename**: \`app-debug.apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **File Size**: \`${APK_SIZE}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **SHA-256**: \`${APK_SHA}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Release Page**: ${REPO_URL}/releases/tag/${TAG_NAME}" >> $GITHUB_STEP_SUMMARY
           echo "- **Direct Download URL**: ${REPO_URL}/releases/latest/download/app-debug.apk" >> $GITHUB_STEP_SUMMARY
