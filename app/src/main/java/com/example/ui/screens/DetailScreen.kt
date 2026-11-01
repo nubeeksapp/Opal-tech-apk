@@ -73,8 +73,6 @@ import android.widget.Toast
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.ads.AdManager
-import com.example.ads.BannerAdView
-import com.example.ads.NativeAdCard
 import com.example.data.model.TechArticle
 import com.example.data.model.TextSizePreference
 import com.example.utils.IntentUtils
@@ -366,13 +364,6 @@ fun DetailScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-
-                // 6. Sleek Native Ad placed naturally at the end of the article immediately above "Suggested"
-                Spacer(modifier = Modifier.height(20.dp))
-                NativeAdCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    showMedia = true
-                )
 
                 // Recommendation articles under "Suggested" (matches reference screenshot: "| Suggested")
                 if (recommendedArticles.isNotEmpty()) {

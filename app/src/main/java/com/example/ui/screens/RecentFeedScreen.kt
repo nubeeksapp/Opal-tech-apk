@@ -195,9 +195,10 @@ fun RecentFeedScreen(
                                     onClick = { onArticleClick(article.id) },
                                     onToggleFavorite = { onToggleFavorite(article.id) }
                                 )
-                                // Insert native ad naturally between articles (after 2nd article or every 5th)
+                                // Insert native ad naturally between articles (after 2nd article or every 5th) with clear policy-compliant separation
                                 if (index == 1 || (articles.size == 1 && index == 0) || (index > 1 && (index + 1) % 5 == 0)) {
-                                    NativeAdCard(modifier = Modifier.padding(vertical = 4.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    NativeAdCard(modifier = Modifier.padding(bottom = 4.dp))
                                 }
                             }
                             item {

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,14 +50,21 @@ fun BannerAdView(
     if (isAdFailed) {
         Spacer(modifier = Modifier.height(0.dp))
     } else {
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .background(MaterialTheme.colorScheme.surface)
-                .testTag("banner_ad_container"),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = modifier.fillMaxWidth()
         ) {
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .testTag("banner_ad_container"),
+                contentAlignment = Alignment.Center
+            ) {
             AndroidView(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -95,4 +104,5 @@ fun BannerAdView(
             )
         }
     }
+}
 }

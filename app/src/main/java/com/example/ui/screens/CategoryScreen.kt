@@ -162,7 +162,7 @@ fun CategoryScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "${categoryArticles.size} articles",
+                                    text = "${categoryArticles.size} Content",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -178,7 +178,7 @@ fun CategoryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No articles found in this category.",
+                                text = "No content found in this category.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
