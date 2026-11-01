@@ -23,11 +23,20 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Prepare Keystore and Environment
+      - name: Restore Persistent Signing Keystore
+        env:
+          KEYSTORE_SECRET: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
-          if [ ! -f debug.keystore ]; then
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$KEYSTORE_SECRET" ]; then
+            echo "$KEYSTORE_SECRET" | tr -d ' \n\r' | base64 -d > debug.keystore
+          elif [ -f debug.keystore.base64 ]; then
+            cat debug.keystore.base64 | tr -d ' \n\r' | base64 -d > debug.keystore
+          else
+            cat << 'EOF' | tr -d ' \n\r' | base64 -d > debug.keystore
+          MIIKZgIBAzCCChAGCSqGSIb3DQEHAaCCCgEEggn9MIIJ+TCCBcAGCSqGSIb3DQEHAaCCBbEEggWtMIIFqTCCBaUGCyqGSIb3DQEMCgECoIIFQDCCBTwwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFN7/iZJ9vJlJRxRojd3uxLPpGLAoAgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQ5uUvY4vvwbRqgPBRrAnkKASCBND+2FAdK0/OQQh0R7nCoDtqwG1ItlNeO+vDrHGCXxPcKdgJPAwyaLShZvBb6Zy59LWuduvCDfdRXDNgNO9vbrXQ3jll5ibLg/kbMb6vIcmBE5BkRulnYp2Zhr9yTXEbC9IwItC9vBX/UoWyVIwF6VkjPtWO1JeuAkZHh6zVtDjz41jyPzAz+nzztC267YcrRhA4P8JkQ4QHx95NVF/QrLa8FYbP0cdfGR9ptxN9FpekwxhpdOPMdCEYClDfSrmUIPdxaqePyWIJbIwTLBQLlVYCi0OB8gvQi8+q/l0aDhfvpf2aF3XmtH9Q6Snus85nvw48d3QWdvh3hBFMfbbetywUuyEdMIKXaW7MQVA1WfBKfFf+lDg7vUYZMMlnvjVetPzN7uRLPGKTHOP0VxO5DSf9cM3smT77Iyu7kcFe38E6xlvpalIfGMv+hLH1M6j4MSprC1qhsYs9F0OKdyskMJZLByC+2MUWrLikzQ2/CokoxBG5zUtESscpEWJQG6IkVci1v9FFqnS2qepbhyYy9nBtPYfjnS8H2ozw3tZvIXKHhjlQ3UdLQnlOkSq7enTtiqVs4Dpg50o0ZYKiSn4AdDVhlhrxfobFYzq9XLaMhrdRfpPrcfeLQwe73w+Ka+IzGjSlstfEdNPoUr07UTZ3Mf7S21U1CboY+EVTZWzMATx63a0MDvgOQTCMT3jpq/925RoluuXP9RDgjmatlcN16J/wlbUlAV2CQGliBtsbh1qFtXV9uklH4t1KKh1B76o3jPVHcy6xIqvHfOVrrB/ZR9Q7z4RnTT44l3oPoHLj1ZYpWoPe2oTYkGmEaieOwMUkp40x+OJCzXRV2ha7BDvqIp5mKFxa48BWa49bfsxRgerR9LcWam81weV3bRH3v9VrXkK531lpd1bzRJ8I7o+4zrChwBe7/x805G7JuXrMA5TljXMTsYag9yEDwzXekGrBieGfXdfGP3HhI3Ap8OxTGyTwcWpA0bOlYTCe4oXFGG5CbE2h8CN/JVtKzPp0qQXcAi/aMWKXZLXqNwW9+msesZZCLVUIOmY61md2eQ5RWjd1qhHrKzKcWCVc/fcIGhGA9OHwwLpUAWtJC4AU7oKtBz3qJ+tFj1uAu5HfyBGKqQM6XtwSHM4f0GLNE1+le0pen73E4edu+IXuwPzo+OOWA7XIk/qOwKCMFFMQrSFq/LPo/sHxGh4h4dTvNJFwaQsYjs23Qi+f7j7MGHWYctrixtfnLPUfFBT1K8hY4j8Mrj/TLI/U2V69lROYtzG4PHgwKqQFdswJiTteP+r6NNGJk4A4Eq9Xse9sVJoEuHNESKo+cbWytAgmyRqF/FcB8bZZxTLYMInq8Ka5bMsMm4wfb43DAuVkwxxFfKRv3I6MLoBeyyUM+V8C7X08I3sYgWN86WPKZVE9nMgcFOCYHz8zy5idG9iyVkoMHpG4qt5qzMq/0H2+OwAU0WCxd+DBlTdWkh6kJ30W5TIuUCz2niMmMMQs03H0tjC4wDy+7ONaHrm/ICHSfRyzmwRz6TKcARbYVJ4kPa6h+7zSXdpEkK6raCZvW+9tBEB8jPtveUhX/xmaTILMywWY5r8TOZ8SpO2Rd8HiB5FTEHtb4pMnGVMt8pNw5k0i/c6YL+vptaK/XPJPnDFSMC0GCSqGSIb3DQEJFDEgHh4AYQBuAGQAcgBvAGkAZABkAGUAYgB1AGcAawBlAHkwIQYJKoZIhvcNAQkVMRQEElRpbWUgMTc5MTQxMzA0NjU1MzCCBDEGCSqGSIb3DQEHBqCCBCIwggQeAgEAMIIEFwYJKoZIhvcNAQcBMGYGCSqGSIb3DQEFDTBZMDgGCSqGSIb3DQEFDDArBBSQIZ9KPNI39ziqvLvEOMkKa8EPNwICJxACASAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEMYIwIcnNUVac5uQ0fC9T9SAggOgz5XZT3qoq+m5o7M7V+xGjiCS2dL00riq4jYGHkuZ3i6fptpZstObBVhPjxEgmvnW+BxkQ4vOog50cxNs97+FXfaeuOhaW1U9U0OkQSeAhx7OzmmSt741wtdXoNTibz3YdfKBimOWnHcfUKOlnUtlv8TXPyeKDam2Od0wSG7TLsGuaxTa5xaoT61/kKChkVRz2Q2iTaXW3IjNqRJtzw+vM1Qqbm9QstOWAbPAmd9RTHtHJ/2b4r7g16hFfJVnRaCGTueQRrsgA1vxa389jzemLVYeyD+IAoXZPgoH30QMofplUb8jlmgjcV1cjsFR88bE7JopOMvvvq0QZQY/W515xkfCYfx1drDoxiPOGpv0W+IXtNKy5jrhGStgSytlO5JCOOJROAGF9wcaBddRaoMiulnZF3TJsn41bndqVPyhAGP3GGO5gx1ccWA1DnKMMT+uuhks1rpQqdvTCW/qf2tAS8q+4fV5QIiXaBw0vqQ5Mrn3fFgahbqU8ULDszw7CydS/CAO/bili1zNglUfEEAc4pTM6mW7xkaTelfsZ/hNtnu85XlkvE3bAXq6nczMASmJU0ubfsvC3J3hoye5iiBKPUz2Na/XxzR1Q7QdtCOlidgxSKu24zx16+sydVnPocg3DtWaA/PPQM4GV7zG3QTOqQBerH/0WPqGdA3QYeLPNv51w8YkblXxdQlfbo5IbPLkYDoUtxguj7lehGRwXhmfsO7ODkGdEmvFzt0ybYQxRujc/IgR6CqV49SptF9DMviVNhq8FIaJsWctR2kNdfZDWYReZj/wBPJI/LDMNpXOsinZrXrPOs5NEOyb4B7RB7yMrwJVs+3AFMvg/SLPea5Z+nNfhUNdG9Hm/HriZzdwo+20H9J7tv1jhAAcuyKOguQcZRJvNk8/DRDJWEbdlLk0moEGEa6IDD2mmDbPHQOBd06OXCUgQwml0KNl2JCeIXPCd5UwDpwWBdyeFNxzpIfvlMpTMFDbGcPwjeNn4bGMnhmz9RDcnnUuAFkMEtTtWUmTW0BLslRcQRAY6igeMDs5wVOvVTJANg+xPjHuAbGEDjT5/s/rBaLcwCEBn+aDSTlrVF5Il9/c3IBlx95XZQkI26fcwUGbQ/38QnKL4vyfuIUk/62oTawReF4C55S1TpnpnAcJeeYNWg1dfC8HeCA/m1H9Dbcu3BzCYqJTdJxJZXgePoAHTxayGLZT45aiBJxMOloacBCMO6HHlRyFFBV1gjBNMDEwDQYJYIZIAWUDBAIBBQAEIE5m8Ps+ZsWzDy9OxpqvJYC6elgnehrS46zWr17uaNipBBT63FfOrjtpyQ7mSEszuaGW+fflbAICJxA=
+          EOF
           fi
+
           if [ ! -f .env ] && [ -f .env.example ]; then
             cp .env.example .env
           fi
@@ -37,7 +46,7 @@ jobs:
         run: |
           ./gradlew assembleDebug --no-daemon
 
-      - name: Validate Compiled APK
+      - name: Validate Compiled APK and Signature
         run: |
           APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK_PATH" || { echo "APK was not generated!"; exit 1; }
@@ -57,10 +66,10 @@ jobs:
           RELEASE_TITLE="Opal Tech v1.0.${{ github.run_number }}"
           APK_FILE="apk-distribution/app-debug.apk"
 
-          # Create the release and mark it as the official latest release
+          # Publish release as official latest release
           gh release create "${TAG_NAME}" "${APK_FILE}" \
             --title "${RELEASE_TITLE}" \
-            --notes "Latest installable Debug APK for Opal Tech built automatically from commit ${{ github.sha }}. Verified ZIP structure and SHA-256." \
+            --notes "Latest installable Debug APK for Opal Tech built automatically from commit ${{ github.sha }}. Signed with persistent Opal Tech certificate." \
             --latest
 
           APK_SIZE=$(ls -lh "${APK_FILE}" | awk '{print $5}')
