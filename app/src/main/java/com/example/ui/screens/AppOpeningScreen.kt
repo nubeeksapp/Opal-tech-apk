@@ -53,7 +53,15 @@ fun AppOpeningScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF030712))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFFD9E7FB),
+                        Color(0xFFE4EDFC),
+                        Color(0xFFF1F4FE)
+                    )
+                )
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -65,9 +73,11 @@ fun AppOpeningScreen(
         Image(
             painter = painterResource(id = R.drawable.app_opening_display),
             contentDescription = "Opal Tech Opening Display",
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .aspectRatio(1f)
                 .graphicsLayer {
                     alpha = alphaAnim.value
                     scaleX = scaleAnim.value

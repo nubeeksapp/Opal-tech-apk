@@ -183,8 +183,6 @@ fun DetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
             ) {
                 val imageModel = if (!article.thumbnailUrl.isNullOrBlank()) {
                     ImageRequest.Builder(context)
@@ -200,10 +198,8 @@ fun DetailScreen(
                 AsyncImage(
                     model = imageModel,
                     contentDescription = article.title,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
