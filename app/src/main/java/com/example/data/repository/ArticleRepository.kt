@@ -670,8 +670,12 @@ Define an automated offline fallback pipeline when the neural accelerator is und
     }
 
     private fun mergeWithInitialArticles(remoteArticles: List<TechArticle>): List<TechArticle> {
-        val existingIds = remoteArticles.map { it.id }.toSet()
-        val missingInitials = initialArticles.filter { it.id !in existingIds }.map { article ->
+        val existingIds = remoteArticles.map { it.id.trim().lowercase() }.toSet()
+        val existingTitles = remoteArticles.map { it.title.trim().lowercase() }.toSet()
+        val missingInitials = initialArticles.filter { article ->
+            article.id.trim().lowercase() !in existingIds &&
+                article.title.trim().lowercase() !in existingTitles
+        }.map { article ->
             val savedCount = persistentViewCounts[article.id] ?: 0L
             if (savedCount > 0L) article.copy(views = formatViews(savedCount)) else article
         }

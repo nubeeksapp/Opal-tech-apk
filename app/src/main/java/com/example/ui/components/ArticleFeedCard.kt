@@ -84,6 +84,8 @@ fun ArticleFeedCard(
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                         .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
                 ) {
                     val imageModel = if (!article.thumbnailUrl.isNullOrBlank()) {
                         ImageRequest.Builder(context)
@@ -99,8 +101,10 @@ fun ArticleFeedCard(
                     AsyncImage(
                         model = imageModel,
                         contentDescription = article.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth()
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
                     )
                 }
 
@@ -211,16 +215,18 @@ fun ArticleFeedCard(
                     .padding(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // Left: 94dp Rounded Thumbnail Image with Date & Time right under it
+                // Left: 16:9 YouTube-style Widescreen Thumbnail Image with Date & Time right under it
                 Column(
-                    modifier = Modifier.width(96.dp),
+                    modifier = Modifier.width(118.dp),
                     horizontalAlignment = Alignment.Start
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(96.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
                     ) {
                         val imageModel = if (!article.thumbnailUrl.isNullOrBlank()) {
                             ImageRequest.Builder(context)
@@ -236,8 +242,10 @@ fun ArticleFeedCard(
                         AsyncImage(
                             model = imageModel,
                             contentDescription = article.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
                         )
                     }
 
