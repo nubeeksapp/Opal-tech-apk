@@ -116,6 +116,15 @@ class ArticleCacheRepository(context: Context) {
         return dao.getCachedCount()
     }
 
+    suspend fun pruneUnsynchronizedArticles(activeIds: List<String>): Int {
+        if (activeIds.isEmpty()) return 0
+        return try {
+            dao.pruneUnsynchronizedArticles(activeIds)
+        } catch (_: Exception) {
+            0
+        }
+    }
+
     suspend fun clearCache() {
         // Only clear temporary offline article content cache.
         // View counts are permanent per user specifications and must NEVER be cleared.

@@ -10,9 +10,15 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
 .env
 debug.keystore
+apk-distribution/
+.build-outputs/
+*.apk
+*.aab
+public/assets/aistudio/

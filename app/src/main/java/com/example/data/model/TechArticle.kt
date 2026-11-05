@@ -25,6 +25,7 @@ data class TechArticle(
     val playStoreUrl: String = "",
     val isFavorite: Boolean = false,
     val sourceTag: String = "",
+    val viewCount: Int = 0,
     val views: String = "0",
     val content: String = "",
     val contentFormat: String = "",

@@ -290,32 +290,31 @@ class ExampleRobolectricTest {
         kotlinx.coroutines.delay(50L)
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
 
-        // View count incremented to 1
+        // View count incremented to 1 on first open in session
         assertEquals("1", repository.articles.value.first { it.id == targetArticle.id }.views)
 
-        // Open same article again
+        // Open same article again in same session: deduplication prevents duplicate increment
         viewModel.openDetail(targetArticle.id)
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         kotlinx.coroutines.delay(50L)
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
-        assertEquals("2", repository.articles.value.first { it.id == targetArticle.id }.views)
+        assertEquals("1", repository.articles.value.first { it.id == targetArticle.id }.views)
 
-        // Simulate refresh
+        // Simulate refresh: real view count remains 1, not reset
         viewModel.refreshFeed()
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         kotlinx.coroutines.delay(50L)
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
 
-        // View count should remain 2 after refresh, not reset to 0 or 1
         val afterRefresh = repository.articles.value.first { it.id == targetArticle.id }
-        assertEquals("2", afterRefresh.views)
+        assertEquals("1", afterRefresh.views)
 
-        // Simulate new app session / new ViewModel instance loading saved counts
+        // Simulate new app session loading saved counts
         val newRepo = ArticleRepository()
         val savedCounts = cacheRepo.getAllViewCounts()
         newRepo.applyPersistentViewCounts(savedCounts)
         val reloadedArticle = newRepo.articles.value.first { it.id == targetArticle.id }
-        assertEquals("2", reloadedArticle.views)
+        assertEquals("1", reloadedArticle.views)
     }
 
     @Test

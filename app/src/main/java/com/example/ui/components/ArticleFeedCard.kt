@@ -165,7 +165,7 @@ fun ArticleFeedCard(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Footer Section
+                    // Footer Section: Action Buttons on right (view count hidden on feed)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -179,30 +179,30 @@ fun ArticleFeedCard(
                                 .size(36.dp)
                                 .testTag("share_btn_${article.id}")
                         ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Share,
-                                    contentDescription = "Share article",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Outlined.Share,
+                                contentDescription = "Share article",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
 
-                            IconButton(
-                                onClick = onToggleFavorite,
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .testTag("favorite_btn_${article.id}")
-                            ) {
-                                Icon(
-                                    imageVector = if (article.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                                    contentDescription = if (article.isFavorite) "Remove from favorites" else "Add to favorites",
-                                    tint = if (article.isFavorite) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                        IconButton(
+                            onClick = onToggleFavorite,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .testTag("favorite_btn_${article.id}")
+                        ) {
+                            Icon(
+                                imageVector = if (article.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = if (article.isFavorite) "Remove from favorites" else "Add to favorites",
+                                tint = if (article.isFavorite) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
+            }
         } else {
             // Modern News Feed Layout (Screenshot style): Left rounded thumbnail, right content & actions
             Row(
@@ -314,7 +314,7 @@ fun ArticleFeedCard(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Footer Row: Direct Action Buttons (views hidden on front page, shown when article is clicked)
+                    // Footer Row: Action Buttons on right (view count hidden on feed)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,

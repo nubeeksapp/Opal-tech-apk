@@ -20,7 +20,7 @@ class Converters {
     }
 }
 
-@Database(entities = [CachedArticleEntity::class, ArticleViewCountEntity::class], version = 6, exportSchema = false)
+@Database(entities = [CachedArticleEntity::class, ArticleViewCountEntity::class], version = 7, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class OpalTechDatabase : RoomDatabase() {
     abstract fun cachedArticleDao(): CachedArticleDao

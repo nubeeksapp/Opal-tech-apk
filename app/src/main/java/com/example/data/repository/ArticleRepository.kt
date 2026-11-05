@@ -498,7 +498,11 @@ Define an automated offline fallback pipeline when the neural accelerator is und
     private val _categories = MutableStateFlow(defaultCategories)
     val categoriesFlow: StateFlow<List<AppCategory>> = _categories.asStateFlow()
 
-    private val _articles = MutableStateFlow(initialArticles)
+    private val _articles = MutableStateFlow(
+        (listOf(wifi7Article) + initialArticles)
+            .distinctBy { it.id }
+            .sortedWith(compareByDescending { DateUtils.parseDateToMillis(it.publishDate) })
+    )
     val articles: StateFlow<List<TechArticle>> = _articles.asStateFlow()
 
     private val favoriteIds = mutableSetOf("android-private-space")
@@ -626,7 +630,13 @@ Define an automated offline fallback pipeline when the neural accelerator is und
             if (postDtos.isNotEmpty()) {
                 val visibleDtos = postDtos.filter { dto ->
                     dto.isPublished != false && !dto.status.equals("draft", ignoreCase = true)
-                }
+                }.sortedWith(
+                    compareByDescending<com.example.data.remote.dto.SupabasePostDto> { dto ->
+                        DateUtils.parseDateToMillis(dto.publishDate ?: dto.publishedAt ?: dto.createdAt)
+                    }.thenByDescending { dto ->
+                        DateUtils.parseDateToMillis(dto.createdAt)
+                    }
+                )
 
                 val mapped = visibleDtos.map { dto ->
                     val postId = dto.id?.toString() ?: ""
@@ -642,22 +652,29 @@ Define an automated offline fallback pipeline when the neural accelerator is und
                         category = normalizedCatName
                     )
 
-                    // Never drop or reset view count: take max of local persistent and remote count
-                    val localSaved = persistentViewCounts[normalizedArticle.id] ?: 0L
-                    val remoteCount = parseViewsCount(normalizedArticle.views)
-                    val effectiveCount = maxOf(localSaved, remoteCount)
-                    if (effectiveCount > 0L) {
-                        persistentViewCounts[normalizedArticle.id] = effectiveCount
-                    }
-                    normalizedArticle.copy(views = formatViews(effectiveCount))
+                    // Map real view count directly from remote Supabase post without fake fallbacks
+                    val remoteCount = domainArticle.viewCount.toLong()
+                    val localCount = persistentViewCounts[normalizedArticle.id] ?: 0L
+                    val effectiveCount = maxOf(remoteCount, localCount)
+                    persistentViewCounts[normalizedArticle.id] = effectiveCount
+                    normalizedArticle.copy(
+                        viewCount = effectiveCount.toInt(),
+                        views = formatViews(effectiveCount)
+                    )
                 }
 
-                // If remote returned fewer than our initial articles, merge to guarantee at least 2 per category
-                val merged = mergeWithInitialArticles(mapped)
-                _articles.value = merged
-                updateCategoryCounts(merged)
+                // Explicitly sort newest-first based on Admin Panel publication date
+                val sortedArticles = mapped.sortedWith(
+                    compareByDescending<TechArticle> { article ->
+                        DateUtils.parseDateToMillis(article.publishDate)
+                    }
+                )
+
+                // Single source of truth: directly display published articles from Supabase live database
+                _articles.value = sortedArticles
+                updateCategoryCounts(sortedArticles)
                 _syncStatus.value = SyncStatus.SYNCED_LIVE
-                Result.success(merged)
+                Result.success(sortedArticles)
             } else {
                 updateCategoryCounts(_articles.value)
                 Result.success(_articles.value)
@@ -670,16 +687,10 @@ Define an automated offline fallback pipeline when the neural accelerator is und
     }
 
     private fun mergeWithInitialArticles(remoteArticles: List<TechArticle>): List<TechArticle> {
-        val existingIds = remoteArticles.map { it.id.trim().lowercase() }.toSet()
-        val existingTitles = remoteArticles.map { it.title.trim().lowercase() }.toSet()
-        val missingInitials = initialArticles.filter { article ->
-            article.id.trim().lowercase() !in existingIds &&
-                article.title.trim().lowercase() !in existingTitles
-        }.map { article ->
-            val savedCount = persistentViewCounts[article.id] ?: 0L
-            if (savedCount > 0L) article.copy(views = formatViews(savedCount)) else article
-        }
-        return remoteArticles + missingInitials
+        // Strictly return verified remote articles from the live database without injecting unsynchronized local-only articles
+        return remoteArticles.sortedWith(
+            compareByDescending { DateUtils.parseDateToMillis(it.publishDate) }
+        )
     }
 
     suspend fun fetchPostsByCategory(categoryId: String): Result<List<TechArticle>> = withContext(Dispatchers.IO) {
@@ -712,8 +723,8 @@ Define an automated offline fallback pipeline when the neural accelerator is und
                     ?: countByCatName[category.name]
                     ?: countByCatName[normName]
                     ?: 0
-                // Ensure at least 2 is shown when suitable articles are loaded
-                category.copy(articleCount = maxOf(count, 2))
+                // Accurately reflect exact count of published articles from live database
+                category.copy(articleCount = count)
             }
         }
     }
@@ -773,9 +784,12 @@ Define an automated offline fallback pipeline when the neural accelerator is und
             list.map { article ->
                 val savedCount = persistentViewCounts[article.id]
                 if (savedCount != null && savedCount > 0L) {
-                    val currentCount = parseViewsCount(article.views)
+                    val currentCount = maxOf(article.viewCount.toLong(), parseViewsCount(article.views))
                     val effectiveCount = maxOf(currentCount, savedCount)
-                    article.copy(views = formatViews(effectiveCount))
+                    article.copy(
+                        viewCount = effectiveCount.toInt(),
+                        views = formatViews(effectiveCount)
+                    )
                 } else {
                     article
                 }
@@ -784,19 +798,28 @@ Define an automated offline fallback pipeline when the neural accelerator is und
     }
 
     /**
-     * Atomically increments the view count for [articleId] locally and updates in-memory state.
-     * Guaranteed never to decrease or reset to zero.
+     * Atomically increments the real view count for [articleId] upon a valid content view.
+     * Updates in-memory state immediately so the new count is instantly visible across all screens.
+     * Returns the incremented view count.
      */
-    fun incrementArticleViewCountSync(articleId: String): Long {
-        val currentCount = persistentViewCounts[articleId]
-            ?: parseViewsCount(getArticleById(articleId)?.views)
+    fun recordArticleView(articleId: String): Long {
+        val currentArticle = getArticleById(articleId)
+        val currentCount = maxOf(
+            currentArticle?.viewCount?.toLong() ?: 0L,
+            persistentViewCounts[articleId] ?: 0L,
+            parseViewsCount(currentArticle?.views)
+        )
+
         val newCount = currentCount + 1L
         persistentViewCounts[articleId] = newCount
 
         _articles.update { list ->
             list.map { article ->
                 if (article.id == articleId) {
-                    article.copy(views = formatViews(newCount))
+                    article.copy(
+                        viewCount = newCount.toInt(),
+                        views = formatViews(newCount)
+                    )
                 } else {
                     article
                 }
@@ -806,22 +829,41 @@ Define an automated offline fallback pipeline when the neural accelerator is und
     }
 
     /**
-     * Synchronizes a persisted view count to Supabase backend via atomic RPC with direct PATCH fallback.
+     * Records an article view and returns a Pair of (wasIncremented, count) for backward compatibility.
+     */
+    fun recordArticleViewSession(articleId: String): Pair<Boolean, Long> {
+        val newCount = recordArticleView(articleId)
+        return true to newCount
+    }
+
+    /**
+     * Atomically increments the view count for [articleId] locally and updates in-memory state.
+     */
+    fun incrementArticleViewCountSync(articleId: String): Long {
+        return recordArticleView(articleId)
+    }
+
+    /**
+     * Synchronizes real view count to Supabase backend via direct PATCH to both view_count and views_count.
+     * Tries posts table, then articles table, then RPC to ensure complete database consistency.
      */
     suspend fun syncArticleViewCountToBackend(articleId: String, count: Long) = withContext(Dispatchers.IO) {
         val api = SupabaseClient.api
         if (api != null) {
             try {
-                // 1. Try atomic database increment RPC function
-                val rpcResp = api.incrementViewCountRpc(mapOf("p_article_id" to articleId))
-                if (!rpcResp.isSuccessful) {
-                    // 2. Fallback to direct PostgREST PATCH
-                    api.updatePostViewCount("eq.$articleId", mapOf("view_count" to count))
+                // Update both view_count and views_count directly in Supabase
+                val patchBody = mapOf("view_count" to count, "views_count" to count)
+                val resp = api.updatePostViewCount("eq.$articleId", patchBody)
+                if (!resp.isSuccessful) {
+                    val articleResp = api.updateArticleViewCount("eq.$articleId", patchBody)
+                    if (!articleResp.isSuccessful) {
+                        api.incrementViewCountRpc(mapOf("p_article_id" to articleId))
+                    }
                 }
-                Log.d(TAG, "Incremented view count for article $articleId on Supabase to $count")
+                Log.d(TAG, "Incremented real view count for article $articleId on Supabase to $count")
             } catch (e: Exception) {
                 try {
-                    api.updatePostViewCount("eq.$articleId", mapOf("view_count" to count))
+                    api.updateArticleViewCount("eq.$articleId", mapOf("view_count" to count, "views_count" to count))
                 } catch (_: Exception) {}
             }
         }

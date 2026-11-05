@@ -14,8 +14,8 @@ object DateUtils {
     )
 
     /**
-     * Formats an article creation or publish date into full real date representation:
-     * e.g. "Oct 12, 2026, 11:12 AM" without truncating the year.
+     * Formats an article creation or publish date into date-only representation:
+     * e.g. "Oct 12, 2026" removing specific time strings per user specifications.
      * Consistently applied across all cards and detail screens.
      */
     fun formatArticleDate(raw: String?): String {
@@ -25,8 +25,8 @@ object DateUtils {
                 now.get(Calendar.YEAR),
                 now.get(Calendar.MONTH) + 1,
                 now.get(Calendar.DAY_OF_MONTH),
-                now.get(Calendar.HOUR_OF_DAY),
-                now.get(Calendar.MINUTE)
+                null,
+                null
             )
         }
 
@@ -35,28 +35,22 @@ object DateUtils {
         // Handle legacy or relative strings by resolving to real calendar dates
         if (trimmed.startsWith("Added today", ignoreCase = true)) {
             val now = Calendar.getInstance()
-            val timePart = parseTimeFromString(trimmed)
-            val hour = timePart?.first ?: now.get(Calendar.HOUR_OF_DAY)
-            val minute = timePart?.second ?: now.get(Calendar.MINUTE)
             return formatComponents(
                 now.get(Calendar.YEAR),
                 now.get(Calendar.MONTH) + 1,
                 now.get(Calendar.DAY_OF_MONTH),
-                hour,
-                minute
+                null,
+                null
             )
         }
         if (trimmed.startsWith("Yesterday", ignoreCase = true)) {
             val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -1) }
-            val timePart = parseTimeFromString(trimmed)
-            val hour = timePart?.first ?: cal.get(Calendar.HOUR_OF_DAY)
-            val minute = timePart?.second ?: cal.get(Calendar.MINUTE)
             return formatComponents(
                 cal.get(Calendar.YEAR),
                 cal.get(Calendar.MONTH) + 1,
                 cal.get(Calendar.DAY_OF_MONTH),
-                hour,
-                minute
+                null,
+                null
             )
         }
 
@@ -66,12 +60,13 @@ object DateUtils {
                 parsed.year,
                 parsed.month,
                 parsed.day,
-                parsed.hour,
-                parsed.minute
+                null,
+                null
             )
         }
 
-        return trimmed
+        // Fallback: strip any specific time representation e.g. ", 11:50 PM" or " 11:50 AM"
+        return trimmed.replace(Regex(""",?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?"""), "").trim()
     }
 
     data class ParsedDateTime(
@@ -183,17 +178,29 @@ object DateUtils {
     fun formatComponents(year: Int, month: Int, day: Int, hour: Int?, minute: Int?): String {
         val monthIdx = (month - 1).coerceIn(0, 11)
         val monthStr = shortMonths[monthIdx]
-        return if (hour != null && minute != null) {
-            val amPm = if (hour >= 12) "PM" else "AM"
-            val displayHour = when (val h = hour % 12) {
-                0 -> 12
-                else -> h
+        return "$monthStr $day, $year"
+    }
+
+    /**
+     * Parses an ISO timestamp or formatted date string into epoch milliseconds for robust chronological sorting.
+     */
+    fun parseDateToMillis(raw: String?): Long {
+        if (raw.isNullOrBlank()) return 0L
+        val trimmed = raw.trim()
+        val parsed = parseDateComponents(trimmed)
+        if (parsed != null) {
+            val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                set(Calendar.YEAR, parsed.year)
+                set(Calendar.MONTH, (parsed.month - 1).coerceIn(0, 11))
+                set(Calendar.DAY_OF_MONTH, parsed.day)
+                set(Calendar.HOUR_OF_DAY, parsed.hour ?: 0)
+                set(Calendar.MINUTE, parsed.minute ?: 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }
-            val minStr = String.format(Locale.US, "%02d", minute)
-            "$monthStr $day, $year, $displayHour:$minStr $amPm"
-        } else {
-            "$monthStr $day, $year"
+            return cal.timeInMillis
         }
+        return 0L
     }
 
     private fun getMonthNumber(monthStr: String): Int? {

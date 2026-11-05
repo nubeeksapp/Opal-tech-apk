@@ -83,6 +83,7 @@ data class SupabasePostDto(
     @param:Json(name = "created_at") val createdAt: String? = null,
     @param:Json(name = "updated_at") val updatedAt: String? = null,
     @param:Json(name = "view_count") val viewCount: Any? = null,
+    @param:Json(name = "views_count") val viewsCount: Any? = null,
     @param:Json(name = "views") val views: Any? = null,
     @param:Json(name = "play_store_url") val playStoreUrl: String? = null,
     @param:Json(name = "store_url") val storeUrl: String? = null,
@@ -192,17 +193,16 @@ data class SupabasePostDto(
             ?: createdAt
         val formattedDate = com.example.utils.DateUtils.formatArticleDate(effectiveDate)
 
-        val rawViewCount = viewCount ?: views
-        val resolvedViews = when (rawViewCount) {
-            is Number -> java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(rawViewCount.toLong())
+        val rawViewCount = viewCount ?: viewsCount ?: views
+        val realViewCountInt: Int = when (rawViewCount) {
+            is Number -> rawViewCount.toInt().coerceAtLeast(0)
             is String -> {
-                val digitsOnly = rawViewCount.replace(",", "").filter { it.isDigit() }
-                val num = digitsOnly.toLongOrNull()
-                if (num != null) java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(num)
-                else rawViewCount.trim().ifBlank { "0" }
+                val clean = rawViewCount.trim().replace(",", "")
+                clean.filter { it.isDigit() }.toIntOrNull() ?: 0
             }
-            else -> "0"
+            else -> 0
         }
+        val resolvedViews = if (realViewCountInt <= 0) "0" else java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(realViewCountInt.toLong())
 
         val cleanedTitle = com.example.utils.ArticleSanitizer.cleanPrefix(effectiveTitle)
         val cleanedSummary = com.example.utils.ArticleSanitizer.cleanPrefix(effectiveSummary)
@@ -237,6 +237,7 @@ data class SupabasePostDto(
             playStoreUrl = effectivePlayStoreUrl,
             isFavorite = isFavorite,
             sourceTag = "SUPABASE",
+            viewCount = realViewCountInt,
             views = resolvedViews,
             content = effectiveContent,
             contentFormat = contentFormat?.trim() ?: format?.trim() ?: "",

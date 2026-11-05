@@ -63,7 +63,7 @@ class ExampleUnitTest {
         assertEquals(2, article.whoItsFor.size)
         assertEquals("Remote workers", article.whoItsFor[0])
         assertEquals("International travelers", article.whoItsFor[1])
-        assertEquals("Oct 7, 2026, 12:00 PM", article.publishDate)
+        assertEquals("Oct 7, 2026", article.publishDate)
     }
 
     @Test
@@ -83,20 +83,25 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun `DateUtils formats dates consistently with full year and without truncation`() {
-        // Explicit sample requested by user: Oct 12, 2026, 11:12 AM
+    fun `DateUtils formats dates consistently as date-only without time`() {
+        // Formats as date-only without time per user request
         val sampleFormatted = com.example.utils.DateUtils.formatArticleDate("October 12, 2026 11:12")
-        assertEquals("Oct 12, 2026, 11:12 AM", sampleFormatted)
+        assertEquals("Oct 12, 2026", sampleFormatted)
 
         val isoFormatted = com.example.utils.DateUtils.formatArticleDate("2026-10-14T14:30:00Z")
-        assertEquals("Oct 14, 2026, 2:30 PM", isoFormatted)
+        assertEquals("Oct 14, 2026", isoFormatted)
 
         val morningIso = com.example.utils.DateUtils.formatArticleDate("2026-10-13T09:15:00Z")
-        assertEquals("Oct 13, 2026, 9:15 AM", morningIso)
+        assertEquals("Oct 13, 2026", morningIso)
 
         // Verify full year is present and not truncated
         assertTrue(sampleFormatted.contains("2026"))
         assertFalse(sampleFormatted.contains("202..."))
+
+        // Verify parseDateToMillis sorts newer dates higher
+        val oct18Millis = com.example.utils.DateUtils.parseDateToMillis("2026-10-18T10:30:00Z")
+        val oct12Millis = com.example.utils.DateUtils.parseDateToMillis("2026-10-12T14:10:00Z")
+        assertTrue(oct18Millis > oct12Millis)
     }
 
     @Test
@@ -115,5 +120,50 @@ class ExampleUnitTest {
 
         val cleanTitle = "Android 15 Private Space: Setup Guide"
         assertEquals(cleanTitle, com.example.utils.ArticleSanitizer.cleanPrefix(cleanTitle))
+    }
+
+    @Test
+    fun `ArticleRepository recordArticleView updates view count immediately on repeated visits`() {
+        val repo = com.example.data.repository.ArticleRepository(null)
+        val testArticleId = "android-private-space"
+
+        val initialArticle = repo.getArticleById(testArticleId)
+        assertNotNull("Initial article must exist", initialArticle)
+        val initialCount = initialArticle!!.viewCount.toLong()
+
+        // Visit 1: user opens article
+        val countAfterFirstVisit = repo.recordArticleView(testArticleId)
+        assertEquals(initialCount + 1L, countAfterFirstVisit)
+        assertEquals(countAfterFirstVisit.toInt(), repo.getArticleById(testArticleId)?.viewCount)
+
+        // Simulate navigating to Settings or other screen, then returning to open the article again
+        // Visit 2: user re-opens same article without app restart or refresh
+        val countAfterSecondVisit = repo.recordArticleView(testArticleId)
+        assertEquals(initialCount + 2L, countAfterSecondVisit)
+        assertEquals(countAfterSecondVisit.toInt(), repo.getArticleById(testArticleId)?.viewCount)
+
+        // Visit 3: user opens it a third time
+        val countAfterThirdVisit = repo.recordArticleView(testArticleId)
+        assertEquals(initialCount + 3L, countAfterThirdVisit)
+        assertEquals(countAfterThirdVisit.toInt(), repo.getArticleById(testArticleId)?.viewCount)
+        assertEquals(repo.formatViews(countAfterThirdVisit), repo.getArticleById(testArticleId)?.views)
+    }
+
+    @Test
+    fun `ArticleRepository applyPersistentViewCounts preserves and increases counts consistently`() {
+        val repo = com.example.data.repository.ArticleRepository(null)
+        val articleId = "android-private-space"
+
+        repo.applyPersistentViewCounts(mapOf(articleId to 25L))
+        val article = repo.getArticleById(articleId)
+        assertNotNull(article)
+        assertEquals(25, article!!.viewCount)
+        assertEquals("25", article.views)
+
+        // Increment after persistent counts applied
+        val nextCount = repo.recordArticleView(articleId)
+        assertEquals(26L, nextCount)
+        assertEquals(26, repo.getArticleById(articleId)?.viewCount)
+        assertEquals("26", repo.getArticleById(articleId)?.views)
     }
 }

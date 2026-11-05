@@ -29,6 +29,9 @@ interface CachedArticleDao {
     @Query("SELECT COUNT(*) FROM cached_articles")
     suspend fun getCachedCount(): Int
 
+    @Query("DELETE FROM cached_articles WHERE id NOT IN (:activeIds)")
+    suspend fun pruneUnsynchronizedArticles(activeIds: List<String>): Int
+
     @Query("DELETE FROM cached_articles")
     suspend fun clearAll()
 }

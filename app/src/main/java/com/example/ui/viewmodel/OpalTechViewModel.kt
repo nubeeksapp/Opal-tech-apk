@@ -239,6 +239,7 @@ class OpalTechViewModel @JvmOverloads constructor(
                             repository.applyPersistentViewCounts(savedCounts)
                         }
                         cacheRepository.cacheArticles(freshArticles)
+                        cacheRepository.pruneUnsynchronizedArticles(freshArticles.map { it.id })
                     }
                 }
             }
@@ -268,6 +269,7 @@ class OpalTechViewModel @JvmOverloads constructor(
                         repository.applyPersistentViewCounts(savedCounts)
                     }
                     cacheRepository.cacheArticles(freshArticles)
+                    cacheRepository.pruneUnsynchronizedArticles(freshArticles.map { it.id })
                 }
             }
             _isFeedLoading.value = false
@@ -296,9 +298,19 @@ class OpalTechViewModel @JvmOverloads constructor(
     private val lastArticleOpenTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     fun openDetail(articleId: String) {
+        val current = _currentScreen.value
+        if (current is Screen.Detail && current.articleId == articleId) {
+            // Already viewing this exact article detail, avoid redundant increment
+            return
+        }
+
         val now = System.currentTimeMillis()
         val lastTime = lastArticleOpenTimestamps[articleId] ?: 0L
-        val isDebounced = (now - lastTime) < 20L
+        if (now - lastTime < 500L) {
+            // Debounce rapid double-taps within 500ms
+            _currentScreen.value = Screen.Detail(articleId)
+            return
+        }
         lastArticleOpenTimestamps[articleId] = now
 
         // If user was searching, save search query to persistent search history
@@ -309,19 +321,21 @@ class OpalTechViewModel @JvmOverloads constructor(
             _userPreferences.update { it.copy(searchHistory = updated) }
         }
 
-        if (!isDebounced) {
-            val newViews = repository.incrementArticleViewCountSync(articleId)
-            viewModelScope.launch {
-                // Persist increment in Room database, SharedPreferences, and Supabase backend
-                cacheRepository.setViewCount(articleId, newViews)
-                repository.syncArticleViewCountToBackend(articleId, newViews)
-                val article = getArticle(articleId)
-                if (article != null) {
-                    cacheRepository.cacheArticleView(article)
-                }
+        // Atomically increment the real view count in repository (instantly updates _articles StateFlow)
+        val newCount = repository.recordArticleView(articleId)
+
+        // Immediately update currentScreen so DetailScreen renders with the fresh view count
+        _currentScreen.value = Screen.Detail(articleId)
+
+        viewModelScope.launch {
+            // Persist real increment in Room database, SharedPreferences, and Supabase backend
+            cacheRepository.setViewCount(articleId, newCount)
+            repository.syncArticleViewCountToBackend(articleId, newCount)
+            val article = getArticle(articleId)
+            if (article != null) {
+                cacheRepository.cacheArticleView(article)
             }
         }
-        _currentScreen.value = Screen.Detail(articleId)
     }
 
     fun openSettings() {
@@ -557,7 +571,7 @@ class OpalTechViewModel @JvmOverloads constructor(
             _isRefreshing.value = false
             when (repository.syncStatus.value) {
                 ArticleRepository.SyncStatus.SYNCED_LIVE -> {
-                    _snackBarMessage.emit("Latest articles synced from Supabase!")
+                    _snackBarMessage.emit("Refreshed")
                 }
                 ArticleRepository.SyncStatus.PENDING_TABLES -> {
                     _snackBarMessage.emit("Feed up to date (Supabase tables pending in SQL Editor)")

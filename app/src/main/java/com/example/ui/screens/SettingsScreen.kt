@@ -699,7 +699,7 @@ private fun SettingsMainLayout(
 
                     // Copyright lines
                     Text(
-                        text = "Copyright © 2026 ${AppConfig.PUBLISHER_NAME}.",
+                        text = "Copyright © 2026 ${AppConfig.APP_NAME}.",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -784,15 +784,41 @@ private fun ThinGrayDivider() {
 }
 
 /**
- * Privacy policy opens a new in-app page with a back arrow and the title "Privacy Policy".
- * It shows placeholder text "Privacy policy will be added here."
- * The text comes from AppConfig.PRIVACY_POLICY_TEXT.
+ * Privacy policy opens an in-app page with a back arrow and the title "Privacy Policy".
+ * Renders empty space by default; if privacy policy metadata is provided in the manifest
+ * (e.g. via build/publish configuration), displays it automatically.
  */
 @Composable
 private fun PrivacyPolicyPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val privacyPolicyContent = remember(context) {
+        try {
+            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getApplicationInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.ApplicationInfoFlags.of(
+                        android.content.pm.PackageManager.GET_META_DATA.toLong()
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getApplicationInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.GET_META_DATA
+                )
+            }
+            val meta = appInfo.metaData
+            meta?.getString("com.opaltech.PRIVACY_POLICY_TEXT")?.takeIf { it.isNotBlank() }
+                ?: meta?.getString("com.opaltech.PRIVACY_POLICY_URL")?.takeIf { it.isNotBlank() }
+                ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -838,28 +864,57 @@ private fun PrivacyPolicyPage(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
-            Text(
-                text = AppConfig.PRIVACY_POLICY_TEXT,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            if (privacyPolicyContent.isNotEmpty()) {
+                Text(
+                    text = privacyPolicyContent,
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
 
 /**
- * Publisher info opens a new in-app page with a back arrow and the title "Publisher info".
- * It shows one column with three rows from top to bottom:
- * Publisher name, Email, Phone number.
- * Each row has a small label and the value under it in 16sp.
- * Uses values from AppConfig.
+ * Publisher info opens an in-app page with a back arrow and the title "Publisher info".
+ * Renders empty space by default; if publisher metadata is provided in the manifest
+ * (e.g. via build/publish configuration), displays those fields automatically.
  */
 @Composable
 private fun PublisherInfoPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val publisherFields = remember(context) {
+        try {
+            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getApplicationInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.ApplicationInfoFlags.of(
+                        android.content.pm.PackageManager.GET_META_DATA.toLong()
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getApplicationInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.GET_META_DATA
+                )
+            }
+            val meta = appInfo.metaData
+            listOfNotNull(
+                meta?.getString("com.opaltech.PUBLISHER_NAME")?.takeIf { it.isNotBlank() }?.let { "Publisher name" to it },
+                meta?.getString("com.opaltech.PUBLISHER_EMAIL")?.takeIf { it.isNotBlank() }?.let { "Email" to it },
+                meta?.getString("com.opaltech.PUBLISHER_PHONE")?.takeIf { it.isNotBlank() }?.let { "Phone number" to it },
+                meta?.getString("com.opaltech.PUBLISHER_WEBSITE")?.takeIf { it.isNotBlank() }?.let { "Website" to it }
+            )
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -906,52 +961,21 @@ private fun PublisherInfoPage(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Row 1: Publisher name
-            Column {
-                Text(
-                    text = "Publisher name",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = AppConfig.PUBLISHER_NAME,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // Row 2: Email
-            Column {
-                Text(
-                    text = "Email",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = AppConfig.PUBLISHER_EMAIL,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // Row 3: Phone number
-            Column {
-                Text(
-                    text = "Phone number",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = AppConfig.PUBLISHER_PHONE,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            publisherFields.forEach { (label, value) ->
+                Column {
+                    Text(
+                        text = label,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = value,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }

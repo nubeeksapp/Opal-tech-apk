@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +29,7 @@ import com.google.android.gms.ads.LoadAdError
 
 /**
  * Fixed size Banner Ad Composable using Google AdMob Banner Ad Unit:
- * "ca-app-pub-3940256099942544/6300978111"
+ * "ca-app-pub-4170476681702895/1042460139"
  *
  * Publication & Policy Compliance:
  * - Docks cleanly at 50dp banner standard height.
@@ -65,35 +66,43 @@ fun BannerAdView(
                     .testTag("banner_ad_container"),
                 contentAlignment = Alignment.Center
             ) {
-            AndroidView(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .testTag("admob_banner_view"),
-                factory = { ctx ->
-                    AdView(targetActivity).apply {
-                        setAdSize(AdSize.BANNER)
-                        this.adUnitId = adUnitId
-                        adListener = object : AdListener() {
-                            override fun onAdLoaded() {
-                                Log.d("BannerAdView", "Banner ad loaded successfully.")
-                                isAdLoaded = true
-                                isAdFailed = false
-                            }
+                AndroidView(
+                    modifier = Modifier
+                        .wrapContentSize(Alignment.Center)
+                        .testTag("admob_banner_view"),
+                    factory = { _ ->
+                        AdView(targetActivity).apply {
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                            )
+                            setAdSize(AdSize.BANNER)
+                            this.adUnitId = adUnitId
+                            AdWebViewSanitizer.attach(this)
+                            adListener = object : AdListener() {
+                                override fun onAdLoaded() {
+                                    Log.d("BannerAdView", "Banner ad loaded successfully.")
+                                    isAdLoaded = true
+                                    isAdFailed = false
+                                    AdWebViewSanitizer.attach(this@apply)
+                                    this@apply.post {
+                                        AdWebViewSanitizer.attach(this@apply)
+                                    }
+                                }
 
-                            override fun onAdFailedToLoad(error: LoadAdError) {
-                                Log.d("BannerAdView", "Banner ad failed to load: ${error.message}")
-                                isAdLoaded = false
+                                override fun onAdFailedToLoad(error: LoadAdError) {
+                                    Log.d("BannerAdView", "Banner ad failed to load: ${error.message}")
+                                    isAdLoaded = false
+                                    isAdFailed = true
+                                }
+                            }
+                            try {
+                                loadAd(AdRequest.Builder().build())
+                            } catch (e: Exception) {
+                                Log.w("BannerAdView", "Exception loading banner: ${e.message}")
                                 isAdFailed = true
                             }
                         }
-                        try {
-                            loadAd(AdRequest.Builder().build())
-                        } catch (e: Exception) {
-                            Log.w("BannerAdView", "Exception loading banner: ${e.message}")
-                            isAdFailed = true
-                        }
-                    }
                 },
                 update = {},
                 onRelease = { view ->

@@ -526,6 +526,7 @@ private fun buildCompliantNativeAdView(
 
     nativeAdView.callToActionView = ctaButton
     nativeAdView.addView(rootCard)
+    AdWebViewSanitizer.attach(nativeAdView)
     return nativeAdView
 }
 
@@ -538,6 +539,8 @@ private fun populateCompliantNativeAdView(
     adView: NativeAdView,
     showMedia: Boolean
 ) {
+    AdWebViewSanitizer.attach(adView)
+    adView.post { AdWebViewSanitizer.attach(adView) }
     val headlineView = adView.headlineView as? TextView
     val bodyView = adView.bodyView as? TextView
     val iconView = adView.iconView as? ImageView

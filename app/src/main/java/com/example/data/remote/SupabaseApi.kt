@@ -25,7 +25,7 @@ interface SupabaseApi {
     @GET("posts")
     suspend fun getPosts(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "created_at.desc"
+        @Query("order") order: String = "publish_date.desc.nullslast,created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("posts")
@@ -37,14 +37,14 @@ interface SupabaseApi {
     suspend fun getPostsByCategory(
         @Query(value = "category_id", encoded = true) categoryFilter: String,
         @Query("select") select: String = "*",
-        @Query("order") order: String? = null
+        @Query("order") order: String? = "publish_date.desc.nullslast,created_at.desc"
     ): List<SupabasePostDto>
 
     // Alternate table name 'articles' in case admin panel creates 'articles' instead of 'posts'
     @GET("articles")
     suspend fun getArticles(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "created_at.desc"
+        @Query("order") order: String = "publish_date.desc.nullslast,created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("articles")
@@ -56,13 +56,13 @@ interface SupabaseApi {
     suspend fun getArticlesByCategory(
         @Query(value = "category_id", encoded = true) categoryFilter: String,
         @Query("select") select: String = "*",
-        @Query("order") order: String? = null
+        @Query("order") order: String? = "publish_date.desc.nullslast,created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("tech_articles")
     suspend fun getTechArticles(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "created_at.desc"
+        @Query("order") order: String = "publish_date.desc.nullslast,created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("tech_articles")
@@ -73,7 +73,7 @@ interface SupabaseApi {
     @GET("blogs")
     suspend fun getBlogs(
         @Query("select") select: String = "*",
-        @Query("order") order: String = "publish_date.desc"
+        @Query("order") order: String = "publish_date.desc.nullslast,created_at.desc"
     ): List<SupabasePostDto>
 
     @GET("blogs")

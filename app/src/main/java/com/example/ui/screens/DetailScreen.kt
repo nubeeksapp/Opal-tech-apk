@@ -260,7 +260,13 @@ fun DetailScreen(
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = article.views,
+                            text = if (article.viewCount <= 0 && (article.views == "0" || article.views.isBlank())) {
+                                "0"
+                            } else if (article.views.isNotBlank() && article.views != "0") {
+                                article.views
+                            } else {
+                                article.viewCount.toString()
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Medium,
