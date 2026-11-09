@@ -57,7 +57,20 @@ fun ArticleFeedCard(
     heroLayout: Boolean = false
 ) {
     val context = LocalContext.current
-    val imageDrawableId = ResourceHelper.getDrawableId(context, article.imageResName)
+    val fallbackDrawableId = androidx.compose.runtime.remember(article.imageResName, article.categoryId, article.title) {
+        ResourceHelper.getArticleThumbnail(context, article.imageResName, article.categoryId, article.title)
+    }
+    val imageModel = androidx.compose.runtime.remember(article.id, article.thumbnailUrl, fallbackDrawableId) {
+        if (!article.thumbnailUrl.isNullOrBlank()) {
+            ImageRequest.Builder(context)
+                .data(article.thumbnailUrl)
+                .crossfade(false)
+                .error(fallbackDrawableId)
+                .build()
+        } else {
+            fallbackDrawableId
+        }
+    }
     val displayTitle: String = androidx.compose.runtime.remember(article.title) {
         com.example.utils.ArticleSanitizer.cleanPrefix(article.title)
     }
@@ -84,23 +97,13 @@ fun ArticleFeedCard(
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                         .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    val imageModel = if (!article.thumbnailUrl.isNullOrBlank()) {
-                        ImageRequest.Builder(context)
-                            .data(article.thumbnailUrl)
-                            .crossfade(true)
-                            .placeholder(imageDrawableId)
-                            .error(imageDrawableId)
-                            .build()
-                    } else {
-                        imageDrawableId
-                    }
-
                     AsyncImage(
                         model = imageModel,
                         contentDescription = article.title,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
@@ -223,17 +226,6 @@ fun ArticleFeedCard(
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        val imageModel = if (!article.thumbnailUrl.isNullOrBlank()) {
-                            ImageRequest.Builder(context)
-                                .data(article.thumbnailUrl)
-                                .crossfade(true)
-                                .placeholder(imageDrawableId)
-                                .error(imageDrawableId)
-                                .build()
-                        } else {
-                            imageDrawableId
-                        }
-
                         AsyncImage(
                             model = imageModel,
                             contentDescription = article.title,

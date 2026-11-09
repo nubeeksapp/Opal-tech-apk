@@ -91,7 +91,20 @@ fun DetailScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val imageDrawableId = ResourceHelper.getDrawableId(context, article.imageResName)
+    val fallbackDrawableId = androidx.compose.runtime.remember(article.imageResName, article.categoryId, article.title) {
+        ResourceHelper.getArticleThumbnail(context, article.imageResName, article.categoryId, article.title)
+    }
+    val imageModel = androidx.compose.runtime.remember(article.id, article.thumbnailUrl, fallbackDrawableId) {
+        if (!article.thumbnailUrl.isNullOrBlank()) {
+            ImageRequest.Builder(context)
+                .data(article.thumbnailUrl)
+                .crossfade(false)
+                .error(fallbackDrawableId)
+                .build()
+        } else {
+            fallbackDrawableId
+        }
+    }
 
     // Dynamic text sizing
     val baseFontSize = 16.sp * textSizePreference.scale
@@ -183,23 +196,13 @@ fun DetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                val imageModel = if (!article.thumbnailUrl.isNullOrBlank()) {
-                    ImageRequest.Builder(context)
-                        .data(article.thumbnailUrl)
-                        .crossfade(true)
-                        .placeholder(imageDrawableId)
-                        .error(imageDrawableId)
-                        .build()
-                } else {
-                    imageDrawableId
-                }
-
                 AsyncImage(
                     model = imageModel,
                     contentDescription = article.title,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 

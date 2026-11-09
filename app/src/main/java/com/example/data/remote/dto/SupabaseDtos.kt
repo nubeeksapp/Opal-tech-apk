@@ -228,7 +228,7 @@ data class SupabasePostDto(
             categoryId = catIdStr,
             publishDate = formattedDate,
             thumbnailUrl = resolvedThumbnail,
-            imageResName = "img_scanner_workflow_1792069380471",
+            imageResName = "thumb_scanner_1791412603303",
             fullDescription = if (cleanedParagraphs.isNotEmpty()) cleanedParagraphs else listOf(cleanedSummary),
             whoItsFor = resolvedAudience,
             keyFeatures = resolvedFeatures,
