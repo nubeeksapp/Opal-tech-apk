@@ -20,6 +20,9 @@ android {
     versionName = "1.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    buildConfigField("String", "SUPABASE_URL", "\"https://fabjwphsotffrmofwksr.supabase.co\"")
+    buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_M-1gqzd47xis9gHTTHXT7A_GkQlPJnt\"")
   }
 
   signingConfigs {
@@ -68,6 +71,8 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  ignoreList.add("SUPABASE_URL")
+  ignoreList.add("SUPABASE_ANON_KEY")
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
